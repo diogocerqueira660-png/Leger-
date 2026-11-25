@@ -532,7 +532,7 @@ function vLiens(){
       <span class="status ${aiMode()!=='local'?'on':'mid'}">${aiMode()==='claude'?'Via Claude':aiMode()==='key'?'Clé API':'Mode hors ligne'}</span></div>
     ${aiMode()==='claude'?`<p class="note">Dans Claude, le coach utilise votre compte Claude : rien à configurer.</p>`:`
     <p class="note">Sans IA, le coach répond aux questions fréquentes. Pour des réponses libres, collez une clé API Anthropic (console.anthropic.com › API Keys). Elle reste sur ce téléphone ; chaque question coûte une fraction de centime.</p>
-    <div class="row" style="margin-top:10px"><input class="i" id="ai-key" type="password" placeholder="sk-ant-…" value="${esc(S.ai.key||'')}"><button class="btn" data-act="ai-save">OK</button></div>`}
+    <div class="row" style="margin-top:10px"><input class="i" id="ai-key" type="password" placeholder="sk-ant-…" value="${esc(S.ai.key||'')}"><button class="btn" data-act="ai-save">OK</button></div>${S.ai.key?'<p class="note">Videz le champ puis OK pour retirer la clé.</p>':''}`}
   </section>
 
   <section class="card">
@@ -599,6 +599,7 @@ function vLiens(){
 /* ---------- coach ---------- */
 let sampleFn=null,aiBusy=null;
 try{window.claude?.use?.('sample').then(f=>{sampleFn=f;if(tab==='coach'||tab==='liens')render()}).catch(()=>{})}catch(e){}
+const AI_MODEL='claude-haiku-5-5';
 function aiMode(){return sampleFn?'claude':S.ai.key?'key':'local'}
 const SUGG=['Le café fait-il grossir ?','Que manger ce soir ?','Pourquoi mon poids stagne ?','Collation protéinée ?','Le jeûne intermittent, ça marche ?','L\'alcool et la perte de poids ?','Cardio ou musculation ?','J\'ai craqué, je fais quoi ?'];
 function mdLite(t){
@@ -608,7 +609,15 @@ function mdLite(t){
 }
 function vCoach(){
   const msgs=S.chat.map(m=>`<div class="msg ${m.r==='u'?'me':'ai'}">${m.r==='u'?esc(m.t):mdLite(m.t)+(m.src==='local'?'<span class="src">Réponse hors ligne · ajoutez l\'IA dans Connexions pour aller plus loin</span>':'')}</div>`).join('');
-  return`<section class="card coach-hero"><div class="logo">?</div><div><h2>Coach</h2><span class="small muted">Posez n'importe quelle question sur la nutrition, le sport ou votre progression. Il connaît vos chiffres du jour.</span></div></section>
+  const setup=aiMode()==='local'?`<section class="card stack"><div class="row between"><h2>Réponses IA</h2><span class="status mid">Hors ligne</span></div>
+    <p class="note" style="margin:0">Pour que le coach réponde à tout, instantanément, comme une conversation avec Claude, il faut une clé API Anthropic. Sur un site public, je ne peux pas en intégrer une pour vous sans qu'elle soit volée.</p>
+    <details><summary>Obtenir une clé (3 minutes)</summary><ol class="steps">
+      <li>Ouvrez <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noopener">console.anthropic.com</a> et créez un compte.</li>
+      <li>Dans <b>Billing</b>, ajoutez 5 $ de crédit : cela suffit pour des milliers de questions (environ 0,1 centime chacune).</li>
+      <li>Dans <b>API Keys</b>, touchez <b>Create Key</b>, copiez-la et collez-la ici.</li></ol></details>
+    <div class="row"><input class="i" id="ai-key" type="password" placeholder="sk-ant-…" autocomplete="off"><button class="btn" data-act="ai-save">Activer</button></div>
+    <p class="note" style="margin:0">La clé reste uniquement sur ce téléphone.</p></section>`:'';
+  return`<section class="card coach-hero"><div class="logo">?</div><div><h2>Coach</h2><span class="small muted">Posez n'importe quelle question sur la nutrition, le sport ou votre progression. ${aiMode()==='local'?'Mode hors ligne : réponses aux questions fréquentes.':'Réponses IA personnalisées avec vos chiffres du jour.'}</span></div></section>${setup}
   <div class="chat" id="chat">${msgs||`<div class="msg ai"><p>Bonjour ! Je vois votre budget, vos repas et votre courbe de poids. Que voulez-vous savoir ?</p></div>`}
   ${aiBusy?`<div class="msg ai" id="live"><span class="typing">Réflexion…</span></div>`:''}</div>
   ${S.chat.length?'<button class="addline" data-act="chat-clear" style="align-self:center">Effacer la conversation</button>':''}`;
@@ -640,7 +649,7 @@ async function askCoach(q){
       const r=await sampleFn(turns,{onText:({text:t})=>{text=t;live(t)},signal:aiBusy.signal,modelTier:'quick',cache:false});text=r.text;
     }else{
       const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:aiBusy.signal,headers:{'content-type':'application/json','x-api-key':S.ai.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
-        body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:700,stream:true,system:ctx,messages:turns})});
+        body:JSON.stringify({model:AI_MODEL,max_tokens:700,stream:true,system:ctx,messages:turns})});
       if(!r.ok){throw new Error(r.status===401?'Clé API refusée : vérifiez-la dans Connexions.':'Le coach IA est indisponible ('+r.status+').')}
       const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
       for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});const parts=buf.split('\n');buf=parts.pop();
@@ -657,15 +666,31 @@ async function askCoach(q){
   aiBusy=null;save();render();
 }
 const FAQ=[
+ [/eau de coco/i,`**Non, l'eau de coco ne fait pas maigrir du visage**, ni d'ailleurs d'aucune zone précise.\n- C'est une boisson correcte : environ 20 kcal pour 100 ml (≈ 50 kcal le verre), riche en potassium, moins sucrée qu'un jus.\n- Elle peut **dégonfler un peu** si vous mangez très salé, comme n'importe quelle bonne hydratation (le potassium aide à éliminer le sodium). C'est de l'eau, pas de la graisse.\n- Le visage s'affine quand **le pourcentage de graisse global baisse**, et en réduisant sel et alcool qui font gonfler.\nPour s'hydrater, l'eau plate reste le meilleur choix : 0 kcal.`],
+ [/visage|joues|double menton|ventre plat|perdre du ventre|maigrir du ventre|cuisses|bras|hanches|poign[eé]es d.amour|localis|cibl/i,`**On ne peut pas choisir où on perd la graisse.** Les études sur la « perte localisée » sont claires : faire des abdos ne brûle pas le gras du ventre, et aucun aliment ne fait maigrir le visage.\n- Le corps puise dans ses réserves selon votre génétique, souvent le visage assez tôt et le bas du ventre en dernier.\n- Ce qui marche : un **déficit calorique régulier**, des protéines, de la musculation pour la silhouette.\n- Pour un visage moins gonflé rapidement : moins de sel et d'alcool, plus d'eau et de sommeil.`],
+ [/d[eé]tox|citron|jus vert|cure/i,`Les cures « détox » n'ont **pas d'effet prouvé** : votre foie et vos reins éliminent déjà très bien les déchets.\n- Le citron dans l'eau chaude est sans danger, mais il ne brûle pas de graisse.\n- Les jus détox font perdre surtout de l'eau, qui revient en quelques jours.\n- Ce qui « détoxifie » vraiment : moins d'alcool, plus de légumes, d'eau et de sommeil.`],
+ [/vinaigre|cidre/i,`Le vinaigre de cidre a un effet **très modeste** : dans les études, environ 1 à 2 kg en 3 mois, surtout parce qu'il coupe un peu l'appétit.\n- Si vous essayez : 1 cuillère à soupe diluée dans un grand verre d'eau, jamais pur (il abîme l'émail des dents et l'œsophage).\n- Ça ne remplace pas le déficit calorique.`],
+ [/th[eé] vert|br[uû]le.graisse|fat burner|compl[eé]ment|pilule|gel[uo]le|garcinia|cla\b/i,`Les « brûle-graisses » ne font pas maigrir de façon notable : quand ils ont un effet, c'est grâce à la caféine, l'équivalent d'un café.\n- Le thé vert est bon pour la santé mais son effet sur le poids est minime.\n- Certains compléments vendus en ligne sont dangereux pour le cœur ou le foie.\n- Votre argent est mieux investi dans une balance de cuisine et de bonnes protéines.`],
+ [/k[eé]to|c[eé]tog|low.carb|sans glucide/i,`Le régime cétogène fait perdre vite au début, **surtout de l'eau** (les réserves de glucides retiennent environ 3 g d'eau par gramme).\n- Sur 6 à 12 mois, les résultats sont équivalents à un régime classique à calories égales.\n- Il peut aider si vous avez moins faim ainsi, mais il est difficile à tenir.\n- Choisissez la méthode que vous pouvez suivre longtemps : c'est elle qui marche.`],
+ [/abdo|gainage|crunch/i,`Les abdos renforcent la sangle abdominale mais **ne brûlent pas la graisse du ventre** (quelques dizaines de kcal par séance).\n- Pour un ventre plus plat : déficit calorique + musculation globale (squats, tractions, pompes) + marche.\n- Le gainage reste utile pour le dos et la posture.`],
+ [/coco|huile de coco/i,`L'huile de coco n'a rien de magique : **900 kcal pour 100 g**, comme les autres huiles, et riche en graisses saturées. À utiliser avec modération, l'huile d'olive ou de colza reste préférable au quotidien.`],
+ [/miel|sirop d.agave|sucre de coco|sucre roux/i,`Miel, agave, sucre de coco ou sucre roux : **c'est du sucre**, avec à peu près les mêmes calories (≈ 20 kcal la cuillère à café de sucre, ≈ 60 kcal la cuillère à soupe de miel). Ils ne sont pas plus « minceur », comptez-les pareil.`],
+ [/fromage|lait|laitier|yaourt/i,`Les produits laitiers ne font pas grossir en soi et apportent protéines et calcium.\n- Skyr, fromage blanc et yaourt nature : excellents rapports protéines/calories.\n- Le fromage est dense (≈ 100 à 120 kcal pour 30 g) : une portion par jour, pesée au début pour calibrer l'œil.`],
+ [/resto|restaurant|fast.food|mcdo|burger|kebab|pizza|sushi/i,`Vous pouvez manger dehors en perdant du poids, il suffit de l'anticiper.\n- Repérez votre budget restant dans Journée et allégez le repas d'avant.\n- Choix malins : grillades, poke, sushis (sans tempura), pizza partagée avec une salade.\n- Les pièges : sauces, frites, boissons sucrées et alcool. Un menu burger-frites-soda ≈ 1 100 kcal.\n- Notez-le avec la saisie rapide en estimant large.`],
+ [/stress|cortisol|anxi/i,`Le stress chronique augmente l'appétit pour le sucré et le gras, et perturbe le sommeil. Le cortisol en lui-même ne crée pas de graisse sans surplus de calories.\n- Marche, sport, respiration lente et sommeil sont les meilleurs leviers.\n- Prévoyez des collations rassasiantes plutôt que de compter sur la volonté.`],
+ [/r[eè]gles|cycle|menstru/i,`Avant et pendant les règles, la rétention d'eau fait souvent prendre **0,5 à 2 kg** sur la balance : ce n'est pas de la graisse.\n- Comparez votre poids d'un cycle à l'autre plutôt que semaine par semaine.\n- Les envies sont normales : gardez une petite marge dans le budget ces jours-là.`],
+ [/c[eé]leri|calories? n[eé]gative/i,`Les « aliments à calories négatives » sont un mythe : la digestion consomme environ 10 % des calories d'un aliment, jamais plus que ce qu'il apporte. Le céleri reste très peu calorique (≈ 15 kcal/100 g), donc idéal pour le volume.`],
+ [/transpir|sauna|k-way|sudation/i,`Transpirer fait perdre de l'eau, pas de la graisse : le poids revient dès que vous buvez. Ce qui compte, c'est l'énergie dépensée, pas la sueur.`],
+ [/m[eé]tabolisme|5 repas|petits repas|grignoter souvent/i,`Manger 3 ou 6 fois par jour **ne change pas le métabolisme** : à calories égales, le résultat est le même. Choisissez le rythme qui vous aide à avoir moins faim.`],
  [/caf[eé]|expresso|cappuccino|latte/i,`**Le café noir ne fait pas grossir** : environ 2 kcal la tasse. Il peut même aider un peu (la caféine augmente légèrement la dépense et coupe la faim).\n- Ce qui compte, c'est ce qu'on ajoute : un sucre ≈ 20 kcal, un latte au lait entier ≈ 150 à 250 kcal, un frappuccino peut dépasser 400 kcal.\n- Évitez-le après 14 h si votre sommeil en pâtit : mal dormir augmente la faim le lendemain.\n- Jusqu'à 3 à 4 tasses par jour, c'est sans risque pour la plupart des adultes.`],
  [/alcool|vin|bi[eè]re|ap[eé]ro|cocktail|whisky|vodka/i,`L'alcool apporte **7 kcal par gramme**, presque autant que le gras : un verre de vin ≈ 85 kcal, une pinte ≈ 200 kcal, un cocktail ≈ 200 à 300 kcal.\n- Le corps le brûle en priorité, ce qui met la combustion des graisses en pause.\n- Il désinhibe : on mange souvent plus en apéro.\n- Si vous buvez, comptez-le dans le budget, alternez avec de l'eau et préférez vin sec ou bière légère.`],
- [/sucre|sucr[eé]|bonbon|dessert|g[aâ]teau|chocolat/i,`Le sucre ne fait pas grossir « en soi », c'est le **total de calories** qui compte. Mais les produits sucrés sont peu rassasiants et faciles à surconsommer.\n- Gardez un petit plaisir planifié (2 carreaux de chocolat noir ≈ 120 kcal) plutôt que de tout interdire.\n- Associez-le à un repas, pas seul en collation.\n- Les boissons sucrées sont la pire source : 1 canette ≈ 140 kcal sans aucune satiété.`],
- [/fruit|banane|pomme|raisin/i,`Les fruits sont des alliés : riches en eau et en fibres, ils rassasient pour peu de calories (une pomme ≈ 80 kcal, une banane ≈ 105 kcal).\n- 2 à 3 portions par jour, entiers plutôt qu'en jus (le jus perd les fibres).\n- Les fruits secs sont beaucoup plus denses : une poignée de raisins secs ≈ 130 kcal.`],
+ [/\bsucres?\b|sucr[eé]|bonbon|dessert|g[aâ]teau|chocolat/i,`Le sucre ne fait pas grossir « en soi », c'est le **total de calories** qui compte. Mais les produits sucrés sont peu rassasiants et faciles à surconsommer.\n- Gardez un petit plaisir planifié (2 carreaux de chocolat noir ≈ 120 kcal) plutôt que de tout interdire.\n- Associez-le à un repas, pas seul en collation.\n- Les boissons sucrées sont la pire source : 1 canette ≈ 140 kcal sans aucune satiété.`],
+ [/fruit|banane|\bpommes?\b(?! de terre)|raisin/i,`Les fruits sont des alliés : riches en eau et en fibres, ils rassasient pour peu de calories (une pomme ≈ 80 kcal, une banane ≈ 105 kcal).\n- 2 à 3 portions par jour, entiers plutôt qu'en jus (le jus perd les fibres).\n- Les fruits secs sont beaucoup plus denses : une poignée de raisins secs ≈ 130 kcal.`],
  [/soir|tard|apr[eè]s 20|nuit|d[iî]ner/i,`Manger le soir **ne fait pas grossir en soi** : c'est le bilan de la journée qui compte.\n- Le vrai piège, c'est le grignotage devant un écran et le manque de sommeil.\n- Un dîner riche en protéines et légumes (poisson + légumes + un peu de féculents) rassasie bien.\n- Si vous avez faim tard, gardez 150 à 200 kcal pour un skyr ou un fruit.`],
- [/pain|p[aâ]tes|riz|f[eé]culent|glucide|carb/i,`Les glucides ne sont pas l'ennemi. Riz, pâtes ou pain complet fournissent l'énergie pour vos séances.\n- Surveillez surtout les **portions** : 200 g de pâtes cuites ≈ 320 kcal, c'est vite doublé.\n- Préférez les versions complètes, plus rassasiantes.\n- Dosez-les selon l'activité : plus les jours de sport, moins les jours calmes.`],
+ [/pain|p[aâ]tes|riz|f[eé]culent|glucide|carb|pommes? de terre|patate|frites|quinoa|semoule/i,`Les glucides ne sont pas l'ennemi. Riz, pâtes ou pain complet fournissent l'énergie pour vos séances.\n- Surveillez surtout les **portions** : 200 g de pâtes cuites ≈ 320 kcal, c'est vite doublé.\n- Préférez les versions complètes, plus rassasiantes.\n- Dosez-les selon l'activité : plus les jours de sport, moins les jours calmes.`],
  [/gras|huile|beurre|lipide|avocat|noix|amande/i,`Les lipides sont indispensables (hormones, vitamines), mais très caloriques : **9 kcal par gramme**. Une cuillère d'huile ≈ 90 kcal, une poignée d'amandes ≈ 170 kcal.\n- Visez environ 30 % de vos calories.\n- Mesurez l'huile à la cuillère plutôt qu'à l'œil : c'est la source d'erreur numéro 1.`],
  [/prot[eé]in|whey|viande|poulet|œuf|oeuf|skyr/i,`Les protéines sont votre meilleur outil : elles **rassasient le plus** et protègent vos muscles pendant le régime.\n- Visez environ 1,6 g par kilo (votre cible est affichée sur la journée).\n- En mettre à chaque repas : œufs, skyr, poulet, poisson, tofu, légumineuses.\n- La whey est pratique mais pas obligatoire.`],
- [/eau|boire|hydrat|soif/i,`Bien boire aide : on confond souvent soif et faim, et un grand verre d'eau avant le repas réduit un peu ce qu'on mange.\n- Comptez environ 35 ml par kilo, plus si vous transpirez.\n- Thé et café comptent aussi, pas les sodas.\n- Suivez vos verres dans la carte Hydratation.`],
+ [/\b(boire|hydrat\w*|soif)\b|(^|[^\w])eau(?! de coco)\b/i,`Bien boire aide : on confond souvent soif et faim, et un grand verre d'eau avant le repas réduit un peu ce qu'on mange.\n- Comptez environ 35 ml par kilo, plus si vous transpirez.\n- Thé et café comptent aussi, pas les sodas.\n- Suivez vos verres dans la carte Hydratation.`],
  [/stagn|plateau|bloqu|bouge pas|remonte|pris du poids/i,`Un plateau est normal. Le poids varie de **1 à 2 kg d'un jour à l'autre** (eau, sel, glucides, transit, cycle).\n- Regardez la moyenne sur 7 jours dans l'onglet Poids, pas la pesée du jour.\n- Si la moyenne ne bouge plus depuis 3 semaines : vérifiez les portions (huile, sauces, boissons) et l'activité réelle.\n- En perdant du poids, vos besoins baissent : mettez votre poids à jour pour recalculer le budget.`],
  [/sport|muscu|cardio|courir|course|v[eé]lo|marche|pas\b/i,`L'alimentation fait l'essentiel de la perte, le sport aide à garder le muscle et le moral.\n- **Musculation 2 à 3 fois par semaine** : elle préserve la masse musculaire.\n- Le cardio augmente la dépense ; la marche (8 000 à 10 000 pas) est sous-estimée et facile à tenir.\n- Les montres surestiment souvent les calories brûlées : c'est pour ça que l'app n'en compte qu'une partie.`],
  [/sommeil|dormir|fatigu/i,`Le sommeil compte vraiment : après une nuit courte, l'hormone de la faim (ghréline) augmente et on mange en moyenne **300 kcal de plus**.\n- Visez 7 à 9 h.\n- Pas d'écran ni de café tardif, chambre fraîche.`],
@@ -683,7 +708,8 @@ function localAnswer(q){
     return`Il vous reste **${nf(left)} kcal** et environ **${nf(pl)} g de protéines** à prendre aujourd'hui.\n${left<250?'- Budget presque épuisé : un skyr (95 kcal) ou un bol de légumes avec un œuf.':left<600?'- Filet de poulet ou poisson (≈ 200 kcal) + légumes à volonté + une cuillère d\'huile.\n- Ou une omelette de 2 œufs + salade + une tranche de pain complet.':'- Saumon (≈ 270 kcal) + riz (≈ 230 kcal) + légumes.\n- Ou pâtes complètes, sauce tomate et thon : ≈ 550 kcal et 35 g de protéines.'}`;
   }
   if(hit)return hit[1];
-  return`Je n'ai pas de réponse toute prête à cette question en mode hors ligne. Je réponds sans IA sur : café, alcool, sucre, fruits, féculents, gras, protéines, eau, plateau, sport, sommeil, jeûne, édulcorants, écarts, rythme de perte, sel et petit-déjeuner.\nPour des réponses à tout, activez le coach IA dans **Connexions**.`;
+  if(/c.est vrai|il para[iî]t|apparemment|on m.a dit|fait maigrir|br[uû]le|magique|miracle/i.test(q))return`Méfiez-vous des aliments ou astuces qui « font maigrir » : **aucun aliment ne brûle la graisse** à lui seul, et on ne peut pas cibler une zone du corps. Ce qui fait maigrir, c'est un déficit calorique tenu dans le temps, avec assez de protéines.\nPour une réponse précise sur ce sujet, activez les réponses IA juste au-dessus.`;
+  return`Je n'ai pas de réponse toute prête à cette question. Hors ligne, je connais les grandes questions : café, alcool, sucre, fruits, féculents, gras, protéines, eau, plateau, sport, sommeil, jeûne, régimes, mythes minceur, restaurant, écarts…\nPour répondre à **tout**, comme une vraie conversation, activez les réponses IA en haut de cet écran.`;
 }
 
 /* ---------- sheets ---------- */
@@ -896,7 +922,15 @@ const actions={
   'chat-sugg':b=>askCoach(b.dataset.q),
   'chat-stop':()=>aiBusy?.abort(),
   'chat-clear':()=>{S.chat=[];save();render()},
-  'ai-save':()=>{S.ai.key=$('#ai-key').value.trim();save();render();toast(S.ai.key?'Clé enregistrée : le coach IA est actif':'Clé supprimée')},
+  'ai-save':async()=>{const k=$('#ai-key').value.trim();
+    if(k&&!/^sk-ant-/.test(k))return toast('Cette clé ne ressemble pas à une clé Anthropic (sk-ant-…)');
+    if(!k){S.ai.key='';save();render();return toast('Clé supprimée')}
+    toast('Vérification de la clé…');
+    try{const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'content-type':'application/json','x-api-key':k,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},body:JSON.stringify({model:AI_MODEL,max_tokens:5,messages:[{role:'user',content:'ok'}]})});
+      if(r.status===401||r.status===403)return toast('Clé refusée par Anthropic, vérifiez-la');
+      if(r.status===400){const j=await r.json().catch(()=>({}));if(/credit|billing/i.test(JSON.stringify(j)))return toast('Clé valide mais sans crédit : ajoutez du crédit dans Billing')}
+    }catch(e){}
+    S.ai.key=k;save();render();toast('Réponses IA activées')},
   'water':b=>{const D=day(cur),n=+b.dataset.n;D.water=(D.water||0)/250>=n?(n-1)*250:n*250;leaveDemo();save();render()},
   'fast-start':b=>{S.fast={start:Date.now(),h:+b.dataset.h};save();render();toast('Chrono lancé')},
   'fast-stop':()=>{const h=S.fast?(Date.now()-S.fast.start)/36e5:0;S.fast=null;save();render();toast(`Jeûne de ${nf(h,1)} h enregistré`)},
