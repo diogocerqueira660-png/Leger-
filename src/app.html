@@ -176,7 +176,10 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--
 .msg.ai p{margin:0 0 6px}.msg.ai p:last-child{margin:0}
 .msg.ai ul{margin:4px 0 6px;padding-left:18px}
 .msg .src{display:block;font-size:11px;color:var(--muted);margin-top:6px}
-.typing{color:var(--muted);font-style:italic}
+.typing{display:inline-flex;gap:4px;align-items:center;height:18px;padding:0 2px}
+.typing i{width:7px;height:7px;border-radius:50%;background:var(--muted);animation:tdot 1.1s infinite ease-in-out}
+.typing i:nth-child(2){animation-delay:.15s}.typing i:nth-child(3){animation-delay:.3s}
+@keyframes tdot{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}
 .composer{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom,0px));z-index:24;background:var(--bg);border-top:1px solid var(--line)}
 .composer .wrap{display:flex;gap:8px;padding-block:8px}
 .composer input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:11px 16px;font-size:16px}
@@ -187,6 +190,26 @@ code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--
 .coach-hero{display:flex;gap:12px;align-items:center}
 .coach-hero .logo{background:linear-gradient(135deg,var(--accent),var(--burn))}
 main.chatmode{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
+/* onboarding */
+.onb{position:fixed;inset:0;z-index:70;background:var(--bg);overflow-y:auto;-webkit-overflow-scrolling:touch;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+.onb .wrap{min-height:100%;display:flex;flex-direction:column;gap:16px;padding-block:18px 28px}
+.onb-top{display:flex;align-items:center;gap:10px}
+.onb-top .back{border:0;background:var(--surface);border:1px solid var(--line);width:38px;height:38px;border-radius:999px;font-size:18px;color:var(--muted)}
+.steps-bar{flex:1;display:grid;gap:5px}
+.steps-bar i{height:5px;border-radius:5px;background:var(--surface-2)}
+.steps-bar i.on{background:var(--accent)}
+.onb h1{font-size:30px;line-height:1.1;letter-spacing:-.03em}
+.onb .lead{color:var(--muted);margin:0;font-size:15px}
+.onb .grow{flex:1}
+.onb-hero{display:flex;flex-direction:column;gap:14px;padding-top:8vh}
+.onb-hero .mark{width:64px;height:64px;border-radius:20px;background:conic-gradient(var(--eat) 0 62%,var(--burn) 62% 100%);position:relative}
+.onb-hero .mark::after{content:"";position:absolute;inset:15px;border-radius:9px;background:var(--bg)}
+.feat{display:flex;flex-direction:column;gap:10px}
+.feat div{display:flex;gap:10px;align-items:flex-start;font-size:14.5px}
+.feat b{display:block}
+.feat .d{width:10px;height:10px;border-radius:50%;margin-top:6px;flex:none}
+.recap{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.big2{font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.02em}
 /* planning */
 .wk-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .wk-h button{border:1px solid var(--line);background:var(--surface);width:34px;height:34px;border-radius:999px;color:var(--muted);font-size:18px}
@@ -269,6 +292,7 @@ main.chatmode{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
   <button class="tab" data-tab="coach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 11h.01M12 11h.01M15 11h.01"/></svg>Coach</button>
 </div></nav>
 
+<section class="onb" id="onb" hidden aria-label="Création du compte"><div class="wrap" id="onbbody"></div></section>
 <div class="scrim" id="scrim" data-act="close"></div>
 <section class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="grab"></div><div class="wrap" id="sheetbody"></div></section>
 <div class="toast" id="toast" role="status"></div>
@@ -358,7 +382,7 @@ function totals(k){
 function metKcal(met,min,kg){return Math.round((met-1)*3.5*kg/200*min)} // nettes (hors métabolisme de base)
 
 /* ---------- state ---------- */
-S=load()||seedDemo();
+const stored=load();S=stored||blank();
 let tab='jour',cur=today();
 
 /* ---------- views ---------- */
@@ -374,7 +398,7 @@ function render(){
   if(tab==='coach')requestAnimationFrame(()=>window.scrollTo(0,document.body.scrollHeight));
   clearInterval(fastTimer);if(tab==='jour'&&S.fast)fastTimer=setInterval(()=>{const e=$('#fastnow');if(e)e.outerHTML=fastCard()},30000);
 }
-const banner=()=>S.demo?`<div class="banner"><div><b>Données d'exemple</b>Ce sont des chiffres fictifs pour montrer l'app.</div><button class="btn sm" data-act="start">Commencer</button></div>`:'';
+const banner=()=>S.demo?`<div class="banner"><div><b>Données d'exemple</b>Ce sont des chiffres fictifs pour montrer l'app.</div><button class="btn sm" data-act="start">Créer mon compte</button></div>`:(S.user?.name&&tab==='jour'&&cur===today()?`<p style="margin:4px 2px 0;font-family:var(--display);font-size:22px;font-weight:700;letter-spacing:-.02em">${new Date().getHours()<18?'Bonjour':'Bonsoir'} ${esc(S.user.name)}</p>`:'');
 
 function vJour(){
   const P=plan(cur);
@@ -398,7 +422,7 @@ function vJour(){
     <div class="budget">
       <div class="ring" role="img" aria-label="${nf(Math.abs(left))} kcal ${left<0?'au-dessus du budget':'restantes'}">
         <svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" fill="none" stroke="var(--surface-2)" stroke-width="13"/>
-        <circle cx="75" cy="75" r="62" fill="none" stroke="${left<0?'var(--bad)':'var(--eat)'}" stroke-width="13" stroke-linecap="round" stroke-dasharray="${C*frac} ${C}"/></svg>
+        <circle cx="75" cy="75" r="62" fill="none" stroke="${left<0?'var(--bad)':'var(--eat)'}" stroke-width="13" stroke-linecap="round" stroke-dasharray="${C*frac} ${C}" opacity="${frac>0?1:0}"/></svg>
         <div class="c"><span class="big num">${nf(Math.abs(left))}</span><span class="lbl">${left<0?'kcal en trop':'kcal restantes'}</span></div>
       </div>
       <div class="eq">
@@ -641,6 +665,66 @@ function vLiens(){
   </section>`;
 }
 
+/* ---------- inscription ---------- */
+let OB=null,obStep=0;const OB_N=6;
+function openOnb(step=0){OB=OB||{name:'',sex:'',age:'',height:'',start:'',goal:'',rate:.5,sports:[],freq:3,lvl:'deb',actPct:75};obStep=step;$('#onb').hidden=false;onbRender()}
+function closeOnb(){$('#onb').hidden=true}
+function onbRender(){
+  const bar=`<div class="onb-top">${obStep>0?'<button class="back" data-act="ob-back" aria-label="Retour">‹</button>':''}<div class="steps-bar" style="grid-template-columns:repeat(${OB_N-1},1fr)">${Array.from({length:OB_N-1},(_,i)=>`<i class="${i<obStep?'on':''}"></i>`).join('')}</div></div>`;
+  const next=(l='Continuer')=>`<div class="grow"></div><button class="btn acc block" data-act="ob-next">${l}</button>`;
+  const opt=(v,l,sel)=>`<option value="${v}" ${String(sel)===String(v)?'selected':''}>${l}</option>`;
+  let h='';
+  if(obStep===0)h=`<div class="onb-hero"><div class="mark"></div><h1>Perdez du poids avec un vrai suivi.</h1><p class="lead">Calories, repas en photo, sport, récupération et un coach qui connaît vos chiffres.</p></div>
+    <div class="feat"><div><span class="d" style="background:var(--eat)"></span><span><b>Budget du jour</b>Ce que vous mangez, ce que vous dépensez.</span></div><div><span class="d" style="background:var(--burn)"></span><span><b>Planning sportif</b>Vos séances, Strava et des conseils de récupération.</span></div><div><span class="d" style="background:var(--accent)"></span><span><b>Coach</b>Posez vos questions, il répond avec vos données.</span></div></div>
+    <div class="grow"></div><button class="btn acc block" data-act="ob-next">Créer mon compte</button><p class="note" style="margin:0;text-align:center">2 minutes · vos données restent sur votre téléphone</p>`;
+  if(obStep===1)h=bar+`<h1>Comment vous appelez-vous ?</h1><p class="lead">Pour personnaliser l'app et le coach.</p>
+    <label class="f">Prénom<input class="i" id="ob-name" value="${esc(OB.name)}" autocomplete="given-name" autofocus></label>
+    <div class="f" style="display:flex;flex-direction:column;gap:6px;font-size:13px;color:var(--muted);font-weight:500">Sexe (pour le calcul du métabolisme)<div class="chips"><button class="chip" data-ob-sex="h" aria-pressed="${OB.sex==='h'}">Homme</button><button class="chip" data-ob-sex="f" aria-pressed="${OB.sex==='f'}">Femme</button></div></div>
+    <div class="grid2"><label class="f">Âge<input class="i" id="ob-age" inputmode="numeric" value="${OB.age}"></label><label class="f">Taille (cm)<input class="i" id="ob-height" inputmode="numeric" value="${OB.height}"></label></div>`+next();
+  if(obStep===2)h=bar+`<h1>Votre objectif</h1><p class="lead">Pesez-vous le matin, à jeun, si possible.</p>
+    <div class="grid2"><label class="f">Poids actuel (kg)<input class="i" id="ob-start" inputmode="decimal" value="${OB.start}" autofocus></label><label class="f">Poids visé (kg)<input class="i" id="ob-goal" inputmode="decimal" value="${OB.goal}"></label></div>
+    <label class="f">Rythme<select class="i" id="ob-rate">${opt(.25,'Doux · 0,25 kg / semaine',OB.rate)}${opt(.5,'Recommandé · 0,5 kg / semaine',OB.rate)}${opt(.75,'Soutenu · 0,75 kg / semaine',OB.rate)}${opt(1,'Intensif · 1 kg / semaine',OB.rate)}</select></label>
+    <p class="note" style="margin:0" id="ob-hint"></p>`+next();
+  if(obStep===3)h=bar+`<h1>Votre sport</h1><p class="lead">Choisissez tout ce que vous pratiquez. Le planning et les conseils de récupération s'adaptent.</p>
+    <div class="chips sportchips">${SPORTS.filter(x=>x.id!=='autre').map(x=>`<button class="chip" data-ob-sport="${x.id}" aria-pressed="${OB.sports.includes(x.id)}">${x.n}</button>`).join('')}</div>
+    <div class="grid2"><label class="f">Séances par semaine<select class="i" id="ob-freq">${[1,2,3,4,5,6].map(n=>opt(n,n+(n>1?' séances':' séance'),OB.freq)).join('')}</select></label>
+    <label class="f">Niveau<select class="i" id="ob-lvl">${opt('deb','Débutant',OB.lvl)}${opt('int','Intermédiaire',OB.lvl)}${opt('conf','Confirmé',OB.lvl)}</select></label></div><p class="note" style="margin:0">Pas encore sportif ? Choisissez « Marche / Randonnée », c'est un excellent début.</p>`+next();
+  if(obStep===4)h=bar+`<h1>Connectez vos apps</h1><p class="lead">Facultatif, vous pourrez le faire plus tard avec l'icône lien en haut.</p>
+    <div class="card row"><div class="logo" style="background:#FC4C02">S</div><div style="min-width:0"><b>Strava</b><div class="small muted">Vos sorties s'ajoutent toutes seules au planning.</div></div></div>
+    <div class="card row"><div class="logo" style="background:linear-gradient(135deg,#FF5E7E,#FF2D55)">♥</div><div style="min-width:0"><b>Apple Santé</b><div class="small muted">Pas, calories actives et poids via un Raccourci iOS.</div></div></div>
+    <div class="card stack"><div class="row"><div class="logo" style="background:linear-gradient(135deg,var(--accent),var(--burn))">IA</div><div style="min-width:0"><b>Coach IA et photos de repas</b><div class="small muted">Collez une clé API Anthropic (voir l'onglet Coach).</div></div></div>
+      <input class="i" id="ob-key" type="password" placeholder="sk-ant-… (facultatif)" autocomplete="off"></div>
+    <div class="grow"></div><button class="btn acc block" data-act="ob-next">Continuer</button>`;
+  if(obStep===5){const P=obPlan();h=bar+`<h1>C'est prêt, ${esc(OB.name||'')} !</h1><p class="lead">Voici votre plan de départ. Tout reste modifiable dans le profil.</p>
+    <div class="card"><span class="tiny">Budget repas par jour</span><div class="big2 num">${nf(P.target)} kcal</div><span class="small muted">+ une partie des calories de vos séances</span></div>
+    <div class="recap"><div class="stat"><b>${nf(P.prot)} g</b><span>protéines / jour</span></div><div class="stat"><b>${nf(Math.round(+OB.start*35/250)*250/1000,1)} L</b><span>d'eau / jour</span></div>
+    <div class="stat"><b>${nf(+OB.start-+OB.goal,1)} kg</b><span>à perdre</span></div><div class="stat"><b>${P.eta}</b><span>date estimée</span></div></div>
+    ${OB.sports.length?`<p class="note" style="margin:0">Votre semaine de sport (${OB.freq} séances) sera générée dans l'onglet Planning.</p>`:''}
+    ${P.limited?`<p class="note danger" style="margin:0">Pour votre sécurité, le budget ne descend pas sous ${nf(P.floor)} kcal.</p>`:''}
+    <p class="note" style="margin:0">Votre compte est enregistré sur ce téléphone uniquement. Pensez à faire une sauvegarde de temps en temps (Profil › Mes données).</p>`+next('Commencer')}
+  $('#onbbody').innerHTML=h;$('#onb').scrollTop=0;
+  if(obStep===2){const hint=()=>{const a=num($('#ob-start').value),g=num($('#ob-goal').value);const hm=num(OB.height)/100;$('#ob-hint').textContent=a&&hm?`IMC actuel ${nf(a/hm/hm,1)}${g?` · IMC visé ${nf(g/hm/hm,1)}`:''}. Un IMC entre 18,5 et 25 correspond à la zone « normale ».`:''};$('#ob-start').oninput=hint;$('#ob-goal').oninput=hint;hint()}
+}
+function obPlan(){const p={sex:OB.sex,age:+OB.age,height:+OB.height};const kg=+OB.start;const b=bmr(p,kg)*1.2,floor=OB.sex==='f'?1200:1500,target=Math.max(floor,b-OB.rate*7700/7);
+  const weeks=(kg-+OB.goal)/OB.rate;return{target,floor,limited:b-OB.rate*7700/7<floor,prot:Math.round(kg*1.6),eta:fmtDate(addDays(today(),Math.round(weeks*7)),{month:'short',year:'numeric'})}}
+function obSave(){
+  if(obStep===1){OB.name=$('#ob-name').value.trim();OB.age=num($('#ob-age').value);OB.height=num($('#ob-height').value);
+    if(!OB.name)return'Indiquez votre prénom';if(!OB.sex)return'Choisissez homme ou femme';if(!OB.age||OB.age<14||OB.age>100)return'Âge invalide';if(!OB.height||OB.height<120||OB.height>230)return'Taille invalide (en cm)'}
+  if(obStep===2){OB.start=num($('#ob-start').value);OB.goal=num($('#ob-goal').value);OB.rate=num($('#ob-rate').value);
+    if(!OB.start||OB.start<30||OB.start>350)return'Poids actuel invalide';if(!OB.goal||OB.goal>=OB.start)return'Le poids visé doit être inférieur au poids actuel';
+    if(OB.goal/((OB.height/100)**2)<18.5)return'Ce poids visé correspond à un IMC trop bas (< 18,5)'}
+  if(obStep===3){OB.freq=num($('#ob-freq').value);OB.lvl=$('#ob-lvl').value;if(!OB.sports.length)return'Choisissez au moins un sport'}
+  if(obStep===4){OB.key=$('#ob-key').value.trim()}
+  return null;
+}
+function obFinish(){
+  const keep={strava:S.demo?{}:S.strava,ai:S.ai||{}};S=blank();S.strava=keep.strava||{};S.ai=keep.ai;if(OB.key)S.ai.key=OB.key;
+  S.user={name:OB.name,created:Date.now()};
+  S.profile={sex:OB.sex,age:OB.age,height:OB.height,start:OB.start,goal:OB.goal,rate:OB.rate,actPct:75,sports:OB.sports,freq:OB.freq,lvl:OB.lvl,startDate:today()};
+  S.weights=[{d:today(),kg:OB.start}];if(OB.sports.length)generateWeek(0);
+  save();closeOnb();tab='jour';cur=today();render();toast(`Bienvenue ${OB.name} !`);OB=null;
+}
+
 /* ---------- planning ---------- */
 const SPORTS=[
  {id:'muscu',n:'Musculation',met:5,int:'hard',col:'#6B5BD6',st:['WeightTraining','Crossfit']},
@@ -763,14 +847,15 @@ function vCoach(){
     <p class="note" style="margin:0">La clé reste uniquement sur ce téléphone.</p></section>`:'';
   return`<section class="card coach-hero"><div class="logo">?</div><div><h2>Coach</h2><span class="small muted">Posez n'importe quelle question sur la nutrition, le sport ou votre progression. ${aiMode()==='local'?'Mode hors ligne : réponses aux questions fréquentes.':'Réponses IA personnalisées avec vos chiffres du jour.'}</span></div></section>${setup}
   <div class="chat" id="chat">${msgs||`<div class="msg ai"><p>Bonjour ! Je vois votre budget, vos repas et votre courbe de poids. Que voulez-vous savoir ?</p></div>`}
-  ${aiBusy?`<div class="msg ai" id="live"><span class="typing">Réflexion…</span></div>`:''}</div>
+  ${aiBusy?`<div class="msg ai" id="live"><span class="typing" aria-label="Le coach écrit"><i></i><i></i><i></i></span></div>`:''}</div>
   ${S.chat.length?'<button class="addline" data-act="chat-clear" style="align-self:center">Effacer la conversation</button>':''}`;
 }
 function coachContext(){
   const P=plan(),p=S.profile;if(!P)return'Profil non renseigné.';
   const T=totals(today()),D=day(today());const budget=Math.round(P.target+T.active*p.actPct/100);
   const w=[...S.weights].sort((a,b)=>a.d<b.d?-1:1).slice(-8).map(x=>x.d+': '+x.kg+' kg').join(', ');
-  return`Profil : ${p.sex==='f'?'femme':'homme'}, ${p.age} ans, ${p.height} cm, départ ${p.start} kg, objectif ${p.goal} kg, rythme ${p.rate} kg/semaine.
+  return`Prénom : ${S.user?.name||'inconnu'}.
+Profil : ${p.sex==='f'?'femme':'homme'}, ${p.age} ans, ${p.height} cm, départ ${p.start} kg, objectif ${p.goal} kg, rythme ${p.rate} kg/semaine.
 Aujourd'hui (${today()}) : budget ${budget} kcal (objectif repas ${Math.round(P.target)} + activité), mangé ${Math.round(T.kcal)} kcal (P ${Math.round(T.p)} g / G ${Math.round(T.c)} g / L ${Math.round(T.f)} g ; cible protéines ${P.prot} g), reste ${budget-Math.round(T.kcal)} kcal, activité ${Math.round(T.active)} kcal, pas ${T.steps??'inconnu'}, eau ${D.water||0} ml.
 Repas du jour : ${D.foods.map(f=>f.name+' '+f.kcal+' kcal').join(', ')||'aucun'}.
 Dernières pesées : ${w||'aucune'}.
@@ -783,7 +868,12 @@ async function askCoach(q){
   q=q.trim();if(!q||aiBusy)return;
   S.chat.push({r:'u',t:q});S.chat=S.chat.slice(-40);save();
   const mode=aiMode();
-  if(mode==='local'){S.chat.push({r:'a',t:localAnswer(q),src:'local'});save();render();return}
+  if(mode==='local'){
+    const ans=localAnswer(q);aiBusy=new AbortController();render();
+    const wait=Math.min(3200,Math.max(900,500+ans.length*4));   // « en train d'écrire » selon la longueur
+    await new Promise(r=>setTimeout(r,wait));
+    await typeOut(ans,aiBusy.signal);
+    S.chat.push({r:'a',t:ans,src:'local'});aiBusy=null;save();render();return}
   aiBusy=new AbortController();render();
   const hist=S.chat.slice(-12);while(hist.length&&hist[0].r!=='u')hist.shift();
   const turns=hist.map(m=>({role:m.r==='u'?'user':'assistant',content:m.t}));
@@ -811,6 +901,10 @@ async function askCoach(q){
     else S.chat.push({r:'a',t:(partial?partial+'\n\n':'')+(e?.code==='rate_limited'?'Trop de questions d\'un coup, réessayez dans un instant.':e?.message||'Le coach ne répond pas pour le moment.')});
   }
   aiBusy=null;save();render();
+}
+async function typeOut(t,signal){ // affichage progressif, mot par mot
+  const words=t.split(/(\s+)/);const step=Math.max(12,Math.min(35,1400/words.length));let acc='';
+  for(const w of words){if(signal?.aborted)return;acc+=w;const el=$('#live');if(el)el.innerHTML=mdLite(acc);if(w.trim())await new Promise(r=>setTimeout(r,step))}
 }
 const FAQ=[
  [/eau de coco/i,`**Non, l'eau de coco ne fait pas maigrir du visage**, ni d'ailleurs d'aucune zone précise.\n- C'est une boisson correcte : environ 20 kcal pour 100 ml (≈ 50 kcal le verre), riche en potassium, moins sucrée qu'un jus.\n- Elle peut **dégonfler un peu** si vous mangez très salé, comme n'importe quelle bonne hydratation (le potassium aide à éliminer le sodium). C'est de l'eau, pas de la graisse.\n- Le visage s'affine quand **le pourcentage de graisse global baisse**, et en réduisant sel et alcool qui font gonfler.\nPour s'hydrater, l'eau plate reste le meilleur choix : 0 kcal.`],
@@ -1122,6 +1216,10 @@ const actions={
   'day-prev':()=>{cur=addDays(cur,-1);render()},
   'day-next':()=>{if(cur<today()){cur=addDays(cur,1);render()}},
   'add-menu':sheetMenu,
+  'ob-next':()=>{const err=obSave();if(err)return toast(err);if(obStep>=OB_N-1)return obFinish();obStep++;onbRender()},
+  'ob-back':()=>{obSave();obStep=Math.max(0,obStep-1);onbRender()},
+  'ob-demo':()=>{closeOnb();render()},
+  'ob-close':closeOnb,
   'scan-open':()=>{sheetCtx.meal=defaultMeal();sheetScan()},
   'scan-text':()=>sheetDescribe(),
   'scan-run-text':()=>{const t=$('#mealtxt').value.trim();if(!t)return toast('Décrivez ce que vous avez mangé');runScan({text:t})},
@@ -1131,7 +1229,7 @@ const actions={
     leaveDemo();const D=day(cur);its.forEach(i=>D.foods.push({id:uid(),meal:sheetCtx.meal,name:i.name.trim(),brand:st.plat,g:Math.round(i.g),kcal:r0(i.kcal),p:+(+i.p).toFixed(1),c:+(+i.c).toFixed(1),f:+(+i.f).toFixed(1)}));
     save();closeSheet();tab='jour';render();toast(`${st.plat} ajouté · ${nf(its.reduce((a,i)=>a+i.kcal,0))} kcal`)},
   'close':closeSheet,
-  'start':()=>{const keep={strava:S.strava};S=blank();S.strava=keep.strava;save();tab='profil';cur=today();render();toast('Données d\'exemple effacées')},
+  'start':()=>openOnb(1),
   'add-food':b=>sheetFood(b.dataset.meal||defaultMeal()),
   'pick-food':b=>sheetPortion(sheetCtx.list[+b.dataset.i]),
   'confirm-food':()=>{const g=num($('#pg').value);if(!g)return toast('Indiquez une quantité');const f=sheetCtx.food;
@@ -1192,10 +1290,12 @@ const actions={
   'water':b=>{const D=day(cur),n=+b.dataset.n;D.water=(D.water||0)/250>=n?(n-1)*250:n*250;leaveDemo();save();render()},
   'fast-start':b=>{S.fast={start:Date.now(),h:+b.dataset.h};save();render();toast('Chrono lancé')},
   'fast-stop':()=>{const h=S.fast?(Date.now()-S.fast.start)/36e5:0;S.fast=null;save();render();toast(`Jeûne de ${nf(h,1)} h enregistré`)},
-  'reset-ok':()=>{S=blank();save();tab='profil';render();toast('Données effacées')},
+  'reset-ok':()=>{S=blank();save();tab='jour';render();toast('Données effacées');openOnb(0)},
 };
 document.addEventListener('click',e=>{
   const t=e.target.closest('[data-tab]');if(t&&!t.closest('#pform')){tab=t.dataset.tab;if(tab!=='jour')cur=today();closeSheet();render();window.scrollTo(0,0);return}
+  const os=e.target.closest('[data-ob-sex]');if(os){OB.sex=os.dataset.obSex;document.querySelectorAll('[data-ob-sex]').forEach(x=>x.setAttribute('aria-pressed',x===os));return}
+  const osp=e.target.closest('[data-ob-sport]');if(osp){const id=osp.dataset.obSport;OB.sports=OB.sports.includes(id)?OB.sports.filter(x=>x!==id):[...OB.sports,id];osp.setAttribute('aria-pressed',OB.sports.includes(id));const nb=$('#onbbody [data-act=ob-next]');return}
   const mp=e.target.closest('[data-meal-pick]');if(mp){sheetCtx.meal=mp.dataset.mealPick;document.querySelectorAll('[data-meal-pick]').forEach(x=>x.setAttribute('aria-pressed',x===mp));return}
   const a=e.target.closest('[data-act]');if(a&&actions[a.dataset.act]){e.preventDefault();actions[a.dataset.act](a)}
 });
@@ -1207,6 +1307,7 @@ document.addEventListener('change',e=>{if(e.target.id==='xmlfile'&&e.target.file
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)render()});
 
 render();
+if(!S.profile||S.demo||!S.user)openOnb(0);
 handleOAuthReturn();
 if(S.strava?.refresh&&!inFrame&&Date.now()-(S.strava.last||0)>30*60e3){stravaSync().then(n=>{if(n)render()}).catch(()=>{})}
 if('serviceWorker' in navigator&&!inFrame&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}
