@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Léger">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F2F4F7" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0D1118" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<link rel="icon" href="icons/icon-192.png">
+<style>[hidden]{display:none!important}img{max-width:100%}</style>
+</head>
+<body>
+<title>Carnet Léger</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Inter:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: one-column phone app. Sticky date header, scrolling day view, fixed tab bar with a central add button, bottom sheets for entry. */
+:root{
+  --bg:#F2F4F7; --surface:#FFFFFF; --surface-2:#E8ECF2; --ink:#131A26; --muted:#5B6577; --line:#DBE1EA;
+  --eat:#E95A30; --eat-soft:#FCE6DE; --burn:#0F9A82; --burn-soft:#D9F2EC; --accent:#2B46CC; --accent-soft:#E2E7FB;
+  --warn:#B97C00; --bad:#C93434; --shadow:0 10px 30px rgba(19,26,38,.10);
+  --display:"Bricolage Grotesque","Avenir Next","Segoe UI",system-ui,sans-serif;
+  --body:"Inter",-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+  --r:18px;
+}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){
+  --bg:#0D1118; --surface:#161C27; --surface-2:#212938; --ink:#EDF0F6; --muted:#98A2B4; --line:#2A3344;
+  --eat:#FF7A52; --eat-soft:#3A2119; --burn:#2DC8AA; --burn-soft:#13302B; --accent:#8196FF; --accent-soft:#1E2647;
+  --warn:#E2A82B; --bad:#FF6B6B; --shadow:0 10px 30px rgba(0,0,0,.45); color-scheme:dark }}
+:root[data-theme="dark"]{
+  --bg:#0D1118; --surface:#161C27; --surface-2:#212938; --ink:#EDF0F6; --muted:#98A2B4; --line:#2A3344;
+  --eat:#FF7A52; --eat-soft:#3A2119; --burn:#2DC8AA; --burn-soft:#13302B; --accent:#8196FF; --accent-soft:#1E2647;
+  --warn:#E2A82B; --bad:#FF6B6B; --shadow:0 10px 30px rgba(0,0,0,.45); color-scheme:dark }
+
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{background:var(--bg)}
+body{margin:0;color:var(--ink);font:15px/1.45 var(--body);-webkit-font-smoothing:antialiased;overscroll-behavior-y:none}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.num{font-variant-numeric:tabular-nums}
+h1,h2,h3{font-family:var(--display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.wrap{max-width:560px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}
+.top .wrap{display:flex;align-items:center;gap:8px;padding-block:10px}
+.brand{font-family:var(--display);font-weight:800;font-size:20px;letter-spacing:-.02em;margin-right:auto;display:flex;align-items:center;gap:8px}
+.brand i{width:22px;height:22px;border-radius:7px;background:conic-gradient(var(--eat) 0 62%,var(--burn) 62% 100%);display:inline-block;position:relative}
+.brand i::after{content:"";position:absolute;inset:5px;border-radius:4px;background:var(--bg)}
+.datenav{display:flex;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:999px}
+.datenav button{border:0;background:none;width:34px;height:34px;border-radius:999px;font-size:18px;color:var(--muted)}
+.datenav span{font-weight:600;font-size:13px;min-width:92px;text-align:center}
+
+main{padding-block:6px calc(110px + env(safe-area-inset-bottom,0px))}
+.view{display:flex;flex-direction:column;gap:14px}
+.card{background:var(--surface);border-radius:var(--r);padding:16px;border:1px solid var(--line)}
+.card h2{font-size:17px}
+.row{display:flex;align-items:center;gap:10px}
+.between{justify-content:space-between}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.tiny{font-size:11.5px;letter-spacing:.06em;text-transform:uppercase;font-weight:600;color:var(--muted)}
+
+/* demo banner */
+.banner{display:flex;gap:12px;align-items:center;background:var(--accent-soft);color:var(--ink);border-radius:14px;padding:12px 14px;font-size:13.5px}
+.banner b{display:block}
+.banner button{margin-left:auto;flex:none}
+
+/* budget hero */
+.budget{display:grid;grid-template-columns:150px 1fr;gap:16px;align-items:center}
+.ring{position:relative;width:150px;height:150px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center}
+.ring .big{font-family:var(--display);font-size:34px;font-weight:800;line-height:1;letter-spacing:-.03em}
+.ring .lbl{font-size:12px;color:var(--muted);margin-top:4px}
+.eq{display:flex;flex-direction:column;gap:8px;min-width:0}
+.eq div{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:14px}
+.eq div b{font-variant-numeric:tabular-nums;font-weight:600}
+.eq .op{color:var(--muted);font-weight:600;width:14px;display:inline-block}
+.eq hr{border:0;border-top:1px dashed var(--line);margin:2px 0;width:100%}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block;margin-right:6px;vertical-align:1px}
+.over .big{color:var(--bad)}
+
+.macros{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.macro .bar{height:6px;border-radius:6px;background:var(--surface-2);overflow:hidden;margin-top:6px}
+.macro .bar i{display:block;height:100%;border-radius:6px}
+.macro small{display:block;color:var(--muted);font-size:12px;margin-top:1px}
+.macro b{display:block}
+
+/* meals */
+.meal{padding:4px 0}
+.meal + .meal{border-top:1px solid var(--line);margin-top:6px;padding-top:10px}
+.meal-h{display:flex;align-items:center;gap:8px;padding:4px 0}
+.meal-h h3{font-size:15px;font-family:var(--body);font-weight:600;letter-spacing:0}
+.meal-h .k{margin-left:auto;font-weight:600;font-variant-numeric:tabular-nums}
+.item{display:flex;align-items:center;gap:10px;padding:8px 0;font-size:14px}
+.item .n{min-width:0;flex:1}
+.item .n span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .n small{color:var(--muted);font-size:12px}
+.item .k{font-variant-numeric:tabular-nums;color:var(--muted)}
+.x{border:0;background:none;color:var(--muted);width:28px;height:28px;border-radius:8px;font-size:16px;flex:none}
+.x:hover{background:var(--surface-2)}
+.addline{border:0;background:none;color:var(--accent);font-weight:600;padding:6px 0;font-size:14px}
+.tag{font-size:11px;font-weight:600;padding:2px 7px;border-radius:999px;background:var(--surface-2);color:var(--muted);flex:none}
+.tag.strava{background:#FC4C0222;color:#E04300}
+.tag.sante{background:#FF2D5522;color:#D6204A}
+.tag.manuel{background:var(--accent-soft);color:var(--accent)}
+
+.stats3{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--surface-2);border-radius:12px;padding:10px}
+.stat b{font-family:var(--display);font-size:20px;display:block;font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.stat span{font-size:12px;color:var(--muted)}
+
+/* buttons */
+.btn{border:0;border-radius:12px;padding:11px 16px;font-weight:600;background:var(--ink);color:var(--bg);display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none;font-size:14.5px}
+.btn.alt{background:var(--surface-2);color:var(--ink)}
+.btn.acc{background:var(--accent);color:#fff}
+.btn.strava{background:#FC4C02;color:#fff}
+.btn.block{width:100%}
+.btn.sm{padding:7px 12px;font-size:13px;border-radius:10px}
+.btn:disabled{opacity:.5}
+
+/* forms */
+label.f{display:flex;flex-direction:column;gap:5px;font-size:13px;color:var(--muted);font-weight:500;min-width:0}
+input.i,select.i,textarea.i{width:100%;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 12px;font-size:16px;color:var(--ink)}
+textarea.i{min-height:90px;font-size:14px;font-family:ui-monospace,Menlo,monospace}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 12px;font-size:13.5px;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+/* weight */
+.wstats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.prog{height:10px;border-radius:10px;background:var(--surface-2);overflow:hidden;margin:12px 0 6px}
+.prog i{display:block;height:100%;background:linear-gradient(90deg,var(--burn),var(--accent));border-radius:10px}
+.chart{width:100%;overflow:hidden}
+.chart svg{display:block;width:100%;height:auto}
+.hist .item{border-top:1px solid var(--line)}
+
+/* connections */
+.conn-h{display:flex;align-items:center;gap:12px}
+.logo{width:42px;height:42px;border-radius:12px;display:grid;place-items:center;flex:none;font-weight:800;font-family:var(--display);color:#fff;font-size:18px}
+.status{margin-left:auto;font-size:12px;font-weight:600;padding:4px 9px;border-radius:999px;flex:none}
+.status.on{background:var(--burn-soft);color:var(--burn)}
+.status.off{background:var(--surface-2);color:var(--muted)}
+.status.mid{background:#B97C0022;color:var(--warn)}
+details{border-top:1px solid var(--line);margin-top:12px;padding-top:10px}
+summary{font-weight:600;font-size:14px;cursor:pointer;color:var(--accent)}
+ol.steps{padding-left:20px;margin:10px 0 0;display:flex;flex-direction:column;gap:6px;font-size:13.5px}
+code{font-family:ui-monospace,Menlo,monospace;font-size:12.5px;background:var(--surface-2);padding:1px 5px;border-radius:5px;word-break:break-all}
+.note{font-size:13px;color:var(--muted);margin:8px 0 0}
+.stack{display:flex;flex-direction:column;gap:10px}
+
+/* tab bar */
+.tabs{position:fixed;left:0;right:0;bottom:0;z-index:25;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
+.tabs .wrap{display:grid;grid-template-columns:1fr 1fr 64px 1fr 1fr;align-items:center;height:62px}
+.tab{border:0;background:none;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;font-weight:600;color:var(--muted);padding:6px 0}
+.tab svg{width:23px;height:23px}
+.tab[aria-current="page"]{color:var(--ink)}
+.fab{width:56px;height:56px;border-radius:18px;border:0;background:var(--ink);color:var(--bg);font-size:30px;line-height:1;display:grid;place-items:center;margin:0 auto;transform:translateY(-14px);box-shadow:var(--shadow)}
+
+/* sheet */
+.scrim{position:fixed;inset:0;background:rgba(8,12,20,.45);z-index:40;opacity:0;pointer-events:none;transition:opacity .2s}
+.scrim.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--bg);border-radius:22px 22px 0 0;max-height:92%;overflow-y:auto;transform:translateY(105%);transition:transform .28s cubic-bezier(.2,.8,.2,1);padding-bottom:calc(20px + env(safe-area-inset-bottom,0px));-webkit-overflow-scrolling:touch}
+.sheet.open{transform:none}
+.sheet .grab{width:40px;height:5px;border-radius:5px;background:var(--line);margin:8px auto 4px}
+.sheet .wrap{display:flex;flex-direction:column;gap:14px;padding-block:6px}
+.sheet-h{display:flex;align-items:center;justify-content:space-between}
+.sheet-h h2{font-size:21px}
+.results{display:flex;flex-direction:column}
+.res{display:flex;align-items:center;gap:10px;padding:11px 4px;border:0;border-bottom:1px solid var(--line);background:none;text-align:left;width:100%}
+.res .n{flex:1;min-width:0}
+.res .n span{display:block;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.res .n small{color:var(--muted);font-size:12px}
+.res .k{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px}
+.kcalbig{font-family:var(--display);font-size:40px;font-weight:800;letter-spacing:-.03em;font-variant-numeric:tabular-nums}
+
+/* coach */
+.chat{display:flex;flex-direction:column;gap:10px}
+.msg{max-width:88%;padding:10px 13px;border-radius:16px;font-size:14.5px;line-height:1.5;overflow-wrap:anywhere}
+.msg.me{align-self:flex-end;background:var(--ink);color:var(--bg);border-bottom-right-radius:5px}
+.msg.ai{align-self:flex-start;background:var(--surface);border:1px solid var(--line);border-bottom-left-radius:5px}
+.msg.ai p{margin:0 0 6px}.msg.ai p:last-child{margin:0}
+.msg.ai ul{margin:4px 0 6px;padding-left:18px}
+.msg .src{display:block;font-size:11px;color:var(--muted);margin-top:6px}
+.typing{color:var(--muted);font-style:italic}
+.composer{position:fixed;left:0;right:0;bottom:calc(62px + env(safe-area-inset-bottom,0px));z-index:24;background:var(--bg);border-top:1px solid var(--line)}
+.composer .wrap{display:flex;gap:8px;padding-block:8px}
+.composer input{flex:1;min-width:0;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:11px 16px;font-size:16px}
+.composer .send{flex:none;width:44px;height:44px;border-radius:999px;border:0;background:var(--accent);color:#fff;font-size:18px;font-weight:700}
+.sugg{display:flex;gap:6px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}
+.sugg::-webkit-scrollbar{display:none}
+.sugg .chip{white-space:nowrap;flex:none}
+.coach-hero{display:flex;gap:12px;align-items:center}
+.coach-hero .logo{background:linear-gradient(135deg,var(--accent),var(--burn))}
+main.chatmode{padding-bottom:calc(190px + env(safe-area-inset-bottom,0px))}
+/* water + fasting */
+.glasses{display:flex;gap:6px;flex-wrap:wrap}
+.glass{width:30px;height:38px;border:2px solid var(--accent);border-top-width:0;border-radius:3px 3px 9px 9px;background:none;padding:0;position:relative;overflow:hidden}
+.glass.full::after{content:"";position:absolute;inset:30% 0 0;background:var(--accent);opacity:.75}
+.fastbar{height:10px;border-radius:10px;background:var(--surface-2);overflow:hidden}
+.fastbar i{display:block;height:100%;background:var(--accent);border-radius:10px}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:120px;margin-top:10px}
+.week .b{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;gap:4px;font-size:11px;color:var(--muted)}
+.week .b i{display:block;width:100%;max-width:26px;border-radius:6px 6px 3px 3px;min-height:3px}
+.gear{border:1px solid var(--line);background:var(--surface);width:36px;height:36px;border-radius:999px;display:grid;place-items:center;color:var(--muted)}
+.gear svg{width:19px;height:19px}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%) translateY(20px);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:12px;font-size:14px;font-weight:500;z-index:60;opacity:0;transition:.25s;pointer-events:none;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.empty{text-align:center;color:var(--muted);font-size:14px;padding:10px 0}
+.danger{color:var(--bad)}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+@media (max-width:370px){.budget{grid-template-columns:1fr;justify-items:center}.eq{width:100%}}
+</style>
+
+<header class="top"><div class="wrap">
+  <div class="brand"><i aria-hidden="true"></i>Léger</div>
+  <div class="datenav" id="datenav">
+    <button data-act="day-prev" aria-label="Jour précédent">‹</button>
+    <span id="datelbl">Aujourd'hui</span>
+    <button data-act="day-next" aria-label="Jour suivant">›</button>
+  </div>
+  <button class="gear" data-tab="profil" aria-label="Objectifs et profil"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg></button>
+</div></header>
+
+<main class="wrap"><div id="view" class="view"></div></main>
+
+<form class="composer" id="chatform" hidden><div class="wrap" style="flex-direction:column;gap:8px">
+  <div class="sugg" id="sugg"></div>
+  <div class="row"><input id="chatin" placeholder="Posez votre question…" autocomplete="off" enterkeyhint="send"><button type="submit" class="send" aria-label="Envoyer">↑</button></div>
+</div></form>
+<nav class="tabs" aria-label="Navigation"><div class="wrap">
+  <button class="tab" data-tab="jour" aria-current="page"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8.5"/><path d="M12 3.5a8.5 8.5 0 0 1 8.5 8.5"/></svg>Journée</button>
+  <button class="tab" data-tab="poids"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 17l5-5 4 3 8-8"/><path d="M15 7h5v5"/></svg>Poids</button>
+  <button class="fab" data-act="add-menu" aria-label="Ajouter">+</button>
+  <button class="tab" data-tab="coach"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"/><path d="M9 11h.01M12 11h.01M15 11h.01"/></svg>Coach</button>
+  <button class="tab" data-tab="liens"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/></svg>Connexions</button>
+</div></nav>
+
+<div class="scrim" id="scrim" data-act="close"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="grab"></div><div class="wrap" id="sheetbody"></div></section>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(()=>{
+'use strict';
+/* ---------- utils ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const nf=(n,d=0)=>Number(n||0).toLocaleString('fr-FR',{maximumFractionDigits:d,minimumFractionDigits:d});
+const r0=n=>Math.round(n||0);
+const pad=n=>String(n).padStart(2,'0');
+const dkey=d=>d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate());
+const parseKey=k=>{const[y,m,d]=k.split('-').map(Number);return new Date(y,m-1,d)};
+const addDays=(k,n)=>{const d=parseKey(k);d.setDate(d.getDate()+n);return dkey(d)};
+const today=()=>dkey(new Date());
+const uid=()=>Math.random().toString(36).slice(2,10);
+const num=v=>{if(v==null||v==='')return null;const n=parseFloat(String(v).replace(',','.').replace(/\s/g,''));return isFinite(n)?n:null};
+const fmtDate=(k,opt={weekday:'short',day:'numeric',month:'short'})=>parseKey(k).toLocaleDateString('fr-FR',opt);
+const inFrame=(()=>{try{return window.top!==window}catch(e){return true}})();
+let toastT;
+function toast(msg){const t=$('#toast');t.textContent=msg;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),2800)}
+
+/* ---------- data ---------- */
+const KEY='leger.v1';
+const MEALS=[['matin','Petit-déjeuner'],['midi','Déjeuner'],['soir','Dîner'],['snack','Collations']];
+const ACTS=[ // MET values (Compendium of Physical Activities)
+ ['Marche',3.5],['Marche rapide',4.3],['Course à pied',9.8],['Vélo',7.5],['Natation',7],['Musculation',5],['HIIT / Cross-training',8],['Football',7],['Tennis / Padel',7],['Danse',5],['Yoga / Pilates',2.8],['Rameur',7],['Randonnée',6]];
+const FOODS=[ // kcal, protéines, glucides, lipides pour 100 g ; portion g ; libellé
+ ['Pomme',52,.3,14,.2,150,'1 moyenne'],['Banane',89,1.1,23,.3,120,'1 moyenne'],['Orange',47,.9,12,.1,160,'1 moyenne'],['Fraises',32,.7,7.7,.3,150,'1 bol'],
+ ['Flocons d\'avoine',372,13.5,58.7,7,50,'1 portion'],['Pain complet',247,13,41,3.4,40,'1 tranche'],['Baguette',270,9,55,1.2,50,'1/5 de baguette'],['Riz blanc cuit',130,2.7,28,.3,180,'1 assiette'],
+ ['Pâtes cuites',158,5.8,31,.9,200,'1 assiette'],['Pomme de terre cuite',86,1.9,20,.1,200,'2 moyennes'],['Patate douce cuite',90,2,21,.2,200,'1 moyenne'],['Quinoa cuit',120,4.4,21,1.9,150,'1 portion'],
+ ['Blanc de poulet cuit',165,31,0,3.6,130,'1 filet'],['Steak haché 5 %',125,21,0,5,125,'1 steak'],['Saumon cuit',206,22,0,13,130,'1 pavé'],['Thon au naturel',116,26,0,1,100,'1 boîte égouttée'],
+ ['Œuf',143,12.6,.7,9.5,55,'1 œuf'],['Jambon blanc',113,20,1,3.5,40,'1 tranche'],['Tofu',144,15.6,2.3,8.7,100,'1 portion'],['Lentilles cuites',116,9,20,.4,180,'1 portion'],
+ ['Yaourt nature',61,3.5,4.7,3.3,125,'1 pot'],['Skyr nature',63,11,4,.2,150,'1 pot'],['Fromage blanc 0 %',46,7.5,4,.1,100,'1 portion'],['Lait demi-écrémé',46,3.3,4.8,1.6,250,'1 verre'],
+ ['Emmental',380,28,0,29,30,'1 portion'],['Camembert',299,20,0,24,30,'1 portion'],['Beurre',745,.7,.6,82,10,'1 noisette'],['Huile d\'olive',900,0,0,100,10,'1 c. à soupe'],
+ ['Avocat',160,2,8.5,14.7,80,'1/2 avocat'],['Amandes',579,21,22,50,30,'1 poignée'],['Salade verte',15,1.4,2.9,.2,80,'1 bol'],['Brocoli cuit',35,2.4,7,.4,150,'1 portion'],
+ ['Haricots verts cuits',31,1.8,7,.1,150,'1 portion'],['Tomate',18,.9,3.9,.2,120,'1 moyenne'],['Carottes râpées',41,.9,10,.2,100,'1 portion'],['Chocolat noir 70 %',598,7.8,46,43,20,'2 carreaux'],
+ ['Pizza margherita',250,11,31,9,300,'1/2 pizza'],['Croissant',406,8,45,21,60,'1 croissant'],['Burger classique',254,13,24,12,220,'1 burger'],['Frites',312,3.4,41,15,150,'1 portion moyenne'],
+ ['Jus d\'orange',45,.7,10,.2,200,'1 verre'],['Soda sucré',42,0,10.6,0,330,'1 canette'],['Bière blonde',43,.5,3.6,0,250,'1 demi'],['Vin rouge',85,.1,2.6,0,125,'1 verre'],
+ ['Café noir',2,.1,0,0,100,'1 tasse'],['Barre protéinée',360,33,35,10,60,'1 barre'],['Whey (poudre)',380,78,8,5,30,'1 dose']
+].map(([n,k,p,c,f,g,u])=>({n,k,p,c,f,g,u,src:'base'}));
+
+const blank=()=>({v:1,demo:false,profile:null,days:{},weights:[],strava:{},recent:[],sante:{},chat:[],ai:{},fast:null});
+let S;
+function load(){try{const j=JSON.parse(localStorage.getItem(KEY));if(j&&j.v)return Object.assign(blank(),j)}catch(e){}return null}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
+function day(k){return S.days[k]||(S.days[k]={foods:[],acts:[],health:null,water:0})}
+
+function seedDemo(){
+  const s=blank();s.demo=true;
+  s.profile={sex:'h',age:34,height:178,start:88.4,goal:80,rate:0.5,actPct:75,startDate:addDays(today(),-34)};
+  for(let i=34;i>=0;i-=1){ if(i%2&&i>3)continue; const kg=88.4-(34-i)*0.075+Math.sin(i*1.7)*0.35; s.weights.push({d:addDays(today(),-i),kg:Math.round(kg*10)/10}) }
+  const t=today(),D=s.days[t]={foods:[],acts:[],health:{active:412,steps:7840,src:'exemple'}};
+  const add=(meal,name,g)=>{const f=FOODS.find(x=>x.n===name);D.foods.push(foodEntry(meal,f,g))};
+  add('matin','Flocons d\'avoine',50);add('matin','Skyr nature',150);add('matin','Banane',120);
+  add('midi','Blanc de poulet cuit',130);add('midi','Riz blanc cuit',180);add('midi','Haricots verts cuits',150);add('midi','Huile d\'olive',10);
+  add('snack','Amandes',30);
+  D.acts.push({id:uid(),src:'strava',name:'Course à pied · 5,4 km',min:32,kcal:356,ext:'demo'});
+  [1690,2140,1580,1820,1950,1610].forEach((k,i)=>{s.days[addDays(t,-(i+1))]={foods:[{id:uid(),meal:'midi',name:'Journée d\'exemple',g:0,kcal:k,p:k*.07,c:k*.11,f:k*.035}],acts:[],health:{active:300+i*40},water:1500}});
+  D.water=1250;
+  return s;
+}
+function foodEntry(meal,f,g){const q=g/100;return{id:uid(),meal,name:f.n,brand:f.b||'',g,kcal:r0(f.k*q),p:+(f.p*q).toFixed(1),c:+(f.c*q).toFixed(1),f:+(f.f*q).toFixed(1)}}
+
+/* ---------- calculations ---------- */
+function curWeight(){const w=[...S.weights].sort((a,b)=>a.d<b.d?-1:1);return w.length?w[w.length-1].kg:(S.profile?.start||75)}
+function weightOn(k){const w=S.weights.filter(x=>x.d<=k).sort((a,b)=>a.d<b.d?-1:1);return w.length?w[w.length-1].kg:curWeight()}
+function bmr(p,kg){return 10*kg+6.25*p.height-5*p.age+(p.sex==='f'?-161:5)} // Mifflin-St Jeor
+function plan(k=today()){
+  const p=S.profile;if(!p)return null;
+  const kg=weightOn(k),b=bmr(p,kg),base=b*1.2;
+  const deficit=p.rate*7700/7;
+  const floor=p.sex==='f'?1200:1500;
+  const target=Math.max(floor,base-deficit);
+  return{kg,bmr:b,base,deficit,target,floor,limited:base-deficit<floor,prot:Math.round(kg*1.6),fat:Math.round(target*.3/9)};
+}
+function totals(k){
+  const D=day(k);const t={kcal:0,p:0,c:0,f:0};D.foods.forEach(x=>{t.kcal+=x.kcal;t.p+=x.p;t.c+=x.c;t.f+=x.f});
+  const workouts=D.acts.reduce((a,x)=>a+x.kcal,0);
+  const hActive=D.health?.active;
+  const active=hActive!=null?Math.max(hActive,workouts):workouts;
+  return{...t,workouts,active,steps:D.health?.steps??null,hActive};
+}
+function metKcal(met,min,kg){return Math.round((met-1)*3.5*kg/200*min)} // nettes (hors métabolisme de base)
+
+/* ---------- state ---------- */
+S=load()||seedDemo();
+let tab='jour',cur=today();
+
+/* ---------- views ---------- */
+function render(){
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-current',b.dataset.tab===tab?'page':'false'));
+  $('#datenav').hidden=tab!=='jour';
+  $('#datelbl').textContent=cur===today()?'Aujourd\'hui':cur===addDays(today(),-1)?'Hier':fmtDate(cur);
+  $('#view').innerHTML=({jour:vJour,poids:vPoids,liens:vLiens,profil:vProfil,coach:vCoach})[tab]();
+  if(tab==='profil')bindProfil();
+  $('main').classList.toggle('chatmode',tab==='coach');
+  const cp=$('#chatform');cp.hidden=tab!=='coach';
+  if(tab==='coach')$('#sugg').innerHTML=aiBusy?'<button type="button" class="chip" data-act="chat-stop">■ Arrêter</button>':SUGG.map(q=>`<button type="button" class="chip" data-act="chat-sugg" data-q="${esc(q)}">${esc(q)}</button>`).join('');
+  if(tab==='coach')requestAnimationFrame(()=>window.scrollTo(0,document.body.scrollHeight));
+  clearInterval(fastTimer);if(tab==='jour'&&S.fast)fastTimer=setInterval(()=>{const e=$('#fastnow');if(e)e.outerHTML=fastCard()},30000);
+}
+const banner=()=>S.demo?`<div class="banner"><div><b>Données d'exemple</b>Ce sont des chiffres fictifs pour montrer l'app.</div><button class="btn sm" data-act="start">Commencer</button></div>`:'';
+
+function vJour(){
+  const P=plan(cur);
+  if(!P)return banner()+`<div class="card stack"><h2>Bienvenue</h2><p class="muted" style="margin:0">Renseignez votre profil pour calculer votre budget calorique quotidien.</p><button class="btn" data-tab="profil">Définir mes objectifs</button></div>`;
+  const T=totals(cur),p=S.profile;
+  const actCount=Math.round(T.active*p.actPct/100);
+  const budget=Math.round(P.target+actCount);
+  const left=budget-r0(T.kcal);
+  const C=2*Math.PI*62,frac=Math.min(1,T.kcal/Math.max(1,budget));
+  const D=day(cur);
+  const carbs=Math.max(0,Math.round((budget-P.prot*4-P.fat*9)/4));
+  const macro=(lbl,v,goal,col)=>`<div class="macro"><b class="small">${lbl}</b><small class="num">${nf(v)} / ${nf(goal)} g</small><div class="bar"><i style="width:${Math.min(100,v/goal*100)}%;background:${col}"></i></div></div>`;
+  const meals=MEALS.map(([id,lbl])=>{
+    const it=D.foods.filter(f=>f.meal===id);const sum=it.reduce((a,x)=>a+x.kcal,0);
+    return`<div class="meal"><div class="meal-h"><h3>${lbl}</h3><span class="k">${sum?nf(sum)+' kcal':''}</span></div>
+      ${it.map(f=>`<div class="item"><div class="n"><span>${esc(f.name)}</span><small>${f.g?nf(f.g)+' g':''}${f.brand?' · '+esc(f.brand):''}</small></div><span class="k">${nf(f.kcal)}</span><button class="x" data-act="del-food" data-id="${f.id}" aria-label="Supprimer">×</button></div>`).join('')}
+      <button class="addline" data-act="add-food" data-meal="${id}">+ Ajouter</button></div>`}).join('');
+  const acts=D.acts.map(a=>`<div class="item"><span class="tag ${a.src}">${({strava:'Strava',sante:'Santé',manuel:'Manuel'})[a.src]}</span><div class="n"><span>${esc(a.name)}</span><small>${a.min?nf(a.min)+' min':''}</small></div><span class="k">${nf(a.kcal)}</span><button class="x" data-act="del-act" data-id="${a.id}" aria-label="Supprimer">×</button></div>`).join('');
+  return banner()+`
+  <section class="card ${left<0?'over':''}">
+    <div class="budget">
+      <div class="ring" role="img" aria-label="${nf(Math.abs(left))} kcal ${left<0?'au-dessus du budget':'restantes'}">
+        <svg viewBox="0 0 150 150"><circle cx="75" cy="75" r="62" fill="none" stroke="var(--surface-2)" stroke-width="13"/>
+        <circle cx="75" cy="75" r="62" fill="none" stroke="${left<0?'var(--bad)':'var(--eat)'}" stroke-width="13" stroke-linecap="round" stroke-dasharray="${C*frac} ${C}"/></svg>
+        <div class="c"><span class="big num">${nf(Math.abs(left))}</span><span class="lbl">${left<0?'kcal en trop':'kcal restantes'}</span></div>
+      </div>
+      <div class="eq">
+        <div><span><span class="op"></span>Objectif</span><b>${nf(P.target)}</b></div>
+        <div><span><span class="op">−</span><span class="dot" style="background:var(--eat)"></span>Repas</span><b>${nf(T.kcal)}</b></div>
+        <div><span><span class="op">+</span><span class="dot" style="background:var(--burn)"></span>Activité${p.actPct<100?` <small class="muted">(${p.actPct} %)</small>`:''}</span><b>${nf(actCount)}</b></div>
+        <hr><div><span><span class="op">=</span>Reste</span><b>${nf(left)}</b></div>
+      </div>
+    </div>
+    <div class="macros">${macro('Protéines',T.p,P.prot,'var(--accent)')}${macro('Glucides',T.c,carbs,'var(--eat)')}${macro('Lipides',T.f,P.fat,'var(--warn)')}</div>
+  </section>
+  <section class="card"><div class="row between"><h2>Repas</h2><span class="muted small num">${nf(T.kcal)} kcal</span></div>${meals}</section>
+  <section class="card stack">
+    <div class="row between"><h2>Dépense</h2><button class="btn sm alt" data-act="add-act">+ Activité</button></div>
+    <div class="stats3">
+      <div class="stat"><b>${nf(T.active)}</b><span>kcal actives</span></div>
+      <div class="stat"><b>${T.steps!=null?nf(T.steps):'–'}</b><span>pas</span></div>
+      <div class="stat"><b>${nf(P.base)}</b><span>kcal au repos</span></div>
+    </div>
+    ${acts||'<p class="empty">Aucune séance. Ajoutez-en une ou synchronisez Strava.</p>'}
+    ${T.hActive!=null&&D.acts.length?`<p class="note">Apple Santé compte déjà vos séances dans l'énergie active : on garde la valeur la plus haute (${nf(T.active)} kcal) pour ne rien compter deux fois.</p>`:''}
+  </section>
+  ${waterCard()}
+  ${cur===today()?fastCard():''}
+  <button class="card row" data-tab="coach" style="text-align:left;width:100%;cursor:pointer"><div class="logo" style="background:linear-gradient(135deg,var(--accent),var(--burn));width:38px;height:38px;font-size:15px">?</div><div style="min-width:0"><b>Une question ?</b><div class="small muted">« ${esc(TIPS[new Date().getDate()%TIPS.length])} » Demandez au coach.</div></div></button>`;
+}
+const TIPS=['Le café fait-il grossir ?','Que manger ce soir avec ce qu\'il me reste ?','Pourquoi mon poids stagne ?','Une collation riche en protéines ?','Le jeûne intermittent, ça marche ?','L\'alcool bloque-t-il la perte de poids ?'];
+function waterGoal(){return Math.round(weightOn(cur)*35/250)*250}
+function waterCard(){
+  const D=day(cur),ml=D.water||0,goal=waterGoal(),n=Math.max(8,Math.ceil(goal/250));
+  return`<section class="card stack"><div class="row between"><h2>Hydratation</h2><span class="small muted num">${nf(ml/1000,2)} / ${nf(goal/1000,1)} L</span></div>
+    <div class="glasses">${Array.from({length:n},(_,i)=>`<button class="glass ${i<ml/250?'full':''}" data-act="water" data-n="${i+1}" aria-label="${i+1} verre${i?'s':''}"></button>`).join('')}</div>
+    <p class="note" style="margin:0">Un verre = 250 ml. Objectif : 35 ml par kilo.</p></section>`;
+}
+let fastTimer;
+function fastCard(){
+  const f=S.fast;
+  if(!f)return`<section class="card row between" id="fastnow"><div><h2>Jeûne intermittent</h2><span class="small muted">Lancez le chrono après votre dernier repas.</span></div><div class="row"><button class="btn sm alt" data-act="fast-start" data-h="14">14 h</button><button class="btn sm" data-act="fast-start" data-h="16">16 h</button></div></section>`;
+  const el=(Date.now()-f.start)/36e5,pct=Math.min(100,el/f.h*100),end=new Date(f.start+f.h*36e5);
+  const done=el>=f.h;
+  return`<section class="card stack" id="fastnow"><div class="row between"><h2>Jeûne ${f.h}:${24-f.h}</h2><button class="btn sm alt" data-act="fast-stop">${done?'Terminer':'Arrêter'}</button></div>
+    <div class="row" style="align-items:baseline;gap:6px"><span class="kcalbig">${Math.floor(el)} h ${pad(Math.floor(el%1*60))}</span><span class="muted small">${done?'objectif atteint':'fin à '+end.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})}</span></div>
+    <div class="fastbar"><i style="width:${pct}%"></i></div></section>`;
+}
+
+function vPoids(){
+  const p=S.profile;const w=[...S.weights].sort((a,b)=>a.d<b.d?-1:1);
+  const now=curWeight(),start=p?.start??(w[0]?.kg||now),goal=p?.goal??now;
+  const lost=start-now,total=Math.max(.1,start-goal),pct=Math.max(0,Math.min(100,lost/total*100));
+  // trend: linear regression over last 28 days
+  let trend=null;const cut=addDays(today(),-28),pts=w.filter(x=>x.d>=cut);
+  if(pts.length>=4){const xs=pts.map(x=>(parseKey(x.d)-parseKey(cut))/864e5),ys=pts.map(x=>x.kg);const mx=xs.reduce((a,b)=>a+b)/xs.length,my=ys.reduce((a,b)=>a+b)/ys.length;let nu=0,de=0;xs.forEach((x,i)=>{nu+=(x-mx)*(ys[i]-my);de+=(x-mx)**2});trend=de?nu/de*7:null}
+  let eta='';
+  if(trend!=null&&trend<-.02&&now>goal){const wk=(now-goal)/-trend;eta=fmtDate(addDays(today(),Math.round(wk*7)),{day:'numeric',month:'long',year:'numeric'})}
+  return banner()+`
+  <section class="card">
+    <div class="row between"><span class="tiny">Poids actuel</span><button class="btn sm" data-act="add-weight">+ Pesée</button></div>
+    <div class="row" style="align-items:baseline;gap:6px;margin-top:4px"><span class="kcalbig">${nf(now,1)}</span><span class="muted">kg</span>
+      ${trend!=null?`<span class="tag" style="margin-left:auto;${trend<=0?'background:var(--burn-soft);color:var(--burn)':'background:var(--eat-soft);color:var(--eat)'}">${trend>0?'+':''}${nf(trend,2)} kg/sem.</span>`:''}</div>
+    <div class="prog"><i style="width:${pct}%"></i></div>
+    <div class="row between small muted"><span>Départ ${nf(start,1)} kg</span><span>${nf(pct)} %</span><span>Objectif ${nf(goal,1)} kg</span></div>
+  </section>
+  <div class="wstats">
+    <div class="stat"><b>${lost>=0?'−':'+'}${nf(Math.abs(lost),1)}</b><span>kg depuis le début</span></div>
+    <div class="stat"><b>${nf(Math.max(0,now-goal),1)}</b><span>kg restants</span></div>
+    <div class="stat"><b>${now&&p?.height?nf(now/((p.height/100)**2),1):'–'}</b><span>IMC</span></div>
+  </div>
+  <section class="card"><div class="row between"><h2>Courbe</h2><span class="small muted">90 jours · moyenne 7 j</span></div>${chart(w,goal)}
+    ${eta?`<p class="note">À ce rythme, objectif atteint vers le <b>${eta}</b>.</p>`:p?`<p class="note">Au rythme prévu de ${nf(p.rate,2)} kg/semaine, comptez environ ${nf(Math.max(0,now-goal)/p.rate)} semaines.</p>`:''}
+  </section>
+  ${weekCard()}
+  <section class="card hist"><h2 style="margin-bottom:6px">Historique</h2>
+    ${w.length?[...w].reverse().slice(0,30).map(x=>`<div class="item"><div class="n"><span>${fmtDate(x.d,{weekday:'long',day:'numeric',month:'long'})}</span>${x.src?`<small>${x.src==='sante'?'Apple Santé':esc(x.src)}</small>`:''}</div><span class="num"><b>${nf(x.kg,1)}</b> kg</span><button class="x" data-act="del-weight" data-d="${x.d}" aria-label="Supprimer">×</button></div>`).join(''):'<p class="empty">Aucune pesée pour l\'instant.</p>'}
+  </section>`;
+}
+function weekCard(){
+  if(!S.profile)return'';
+  const days=Array.from({length:7},(_,i)=>addDays(today(),i-6));
+  const data=days.map(k=>{const D=S.days[k];const T=D?totals(k):{kcal:0,active:0};const P=plan(k);const b=P.target+T.active*S.profile.actPct/100;return{k,kcal:T.kcal,b,logged:!!(D&&D.foods.length)}});
+  const max=Math.max(...data.map(d=>Math.max(d.kcal,d.b)),1);
+  const logged=data.filter(d=>d.logged),ok=logged.filter(d=>d.kcal<=d.b).length;
+  const avg=logged.length?logged.reduce((a,d)=>a+d.kcal,0)/logged.length:0;
+  const bal=logged.reduce((a,d)=>a+(d.b-d.kcal),0);
+  let streak=0;for(let i=0;i<400;i++){const D=S.days[addDays(today(),-i)];if(D&&D.foods.length)streak++;else if(i>0)break}
+  return`<section class="card"><div class="row between"><h2>Bilan 7 jours</h2><span class="tag">${streak} j de suite</span></div>
+    <div class="week">${data.map(d=>`<div class="b"><span class="num">${d.logged?nf(d.kcal/1000,1)+'k':''}</span><i style="height:${Math.max(3,d.kcal/max*90)}px;background:${!d.logged?'var(--surface-2)':d.kcal<=d.b?'var(--burn)':'var(--eat)'}"></i><span>${fmtDate(d.k,{weekday:'narrow'})}</span></div>`).join('')}</div>
+    <div class="stats3" style="margin-top:12px"><div class="stat"><b>${ok}/${logged.length||0}</b><span>jours dans le budget</span></div><div class="stat"><b>${nf(avg)}</b><span>kcal / jour</span></div><div class="stat"><b>${bal>=0?'−':'+'}${nf(Math.abs(bal/7700),2)}</b><span>kg estimés</span></div></div></section>`;
+}
+function chart(w,goal){
+  const from=addDays(today(),-90),pts=w.filter(x=>x.d>=from);
+  if(pts.length<2)return'<p class="empty">Ajoutez au moins deux pesées pour voir la courbe.</p>';
+  const W=340,H=170,L=34,R=8,Tp=10,B=22;
+  const t0=parseKey(pts[0].d),t1=parseKey(today()),span=Math.max(1,(t1-t0)/864e5);
+  const vals=pts.map(x=>x.kg).concat(goal);let lo=Math.floor(Math.min(...vals)-.5),hi=Math.ceil(Math.max(...vals)+.5);
+  const X=k=>L+((parseKey(k)-t0)/864e5)/span*(W-L-R),Y=v=>Tp+(hi-v)/(hi-lo)*(H-Tp-B);
+  const step=Math.max(1,Math.ceil((hi-lo)/4));let grid='';
+  for(let v=lo;v<=hi;v+=step)grid+=`<line x1="${L}" x2="${W-R}" y1="${Y(v)}" y2="${Y(v)}" stroke="var(--line)" stroke-width="1"/><text x="${L-6}" y="${Y(v)+4}" text-anchor="end" font-size="10" fill="var(--muted)">${v}</text>`;
+  const avg=pts.map(x=>{const a=addDays(x.d,-6);const s=pts.filter(y=>y.d>=a&&y.d<=x.d);return[x.d,s.reduce((m,y)=>m+y.kg,0)/s.length]});
+  const line=avg.map(([d,v],i)=>(i?'L':'M')+X(d).toFixed(1)+' '+Y(v).toFixed(1)).join(' ');
+  const area=line+` L${X(avg[avg.length-1][0]).toFixed(1)} ${H-B} L${X(avg[0][0]).toFixed(1)} ${H-B} Z`;
+  const last=avg[avg.length-1];
+  const lbls=[pts[0].d,today()].map((d,i)=>`<text x="${i?W-R:L}" y="${H-6}" font-size="10" fill="var(--muted)" text-anchor="${i?'end':'start'}">${fmtDate(d,{day:'numeric',month:'short'})}</text>`).join('');
+  return`<div class="chart"><svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Courbe de poids">
+    <defs><linearGradient id="ga" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--accent)" stop-opacity=".22"/><stop offset="1" stop-color="var(--accent)" stop-opacity="0"/></linearGradient></defs>
+    ${grid}
+    ${goal>=lo&&goal<=hi?`<line x1="${L}" x2="${W-R}" y1="${Y(goal)}" y2="${Y(goal)}" stroke="var(--burn)" stroke-width="1.5" stroke-dasharray="4 4"/><text x="${W-R}" y="${Y(goal)-5}" text-anchor="end" font-size="10" font-weight="600" fill="var(--burn)">objectif ${nf(goal,1)}</text>`:''}
+    <path d="${area}" fill="url(#ga)"/>
+    ${pts.map(x=>`<circle cx="${X(x.d).toFixed(1)}" cy="${Y(x.kg).toFixed(1)}" r="2.4" fill="var(--muted)" opacity=".55"/>`).join('')}
+    <path d="${line}" fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+    <circle cx="${X(last[0])}" cy="${Y(last[1])}" r="5" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/>
+    ${lbls}</svg></div>`;
+}
+
+function vProfil(){
+  const p=S.profile||{sex:'h',age:30,height:175,start:'',goal:'',rate:.5,actPct:75};
+  const P=S.profile?plan():null;
+  const opt=(v,l,sel)=>`<option value="${v}" ${String(sel)===String(v)?'selected':''}>${l}</option>`;
+  return banner()+`
+  <form class="card stack" id="pform">
+    <h2>Mon profil</h2>
+    <div class="chips" role="group" aria-label="Sexe"><button type="button" class="chip" data-sex="h" aria-pressed="${p.sex==='h'}">Homme</button><button type="button" class="chip" data-sex="f" aria-pressed="${p.sex==='f'}">Femme</button></div>
+    <div class="grid2">
+      <label class="f">Âge<input class="i" id="p-age" inputmode="numeric" value="${p.age}"></label>
+      <label class="f">Taille (cm)<input class="i" id="p-height" inputmode="numeric" value="${p.height}"></label>
+      <label class="f">Poids de départ (kg)<input class="i" id="p-start" inputmode="decimal" value="${p.start}"></label>
+      <label class="f">Poids visé (kg)<input class="i" id="p-goal" inputmode="decimal" value="${p.goal}"></label>
+    </div>
+    <label class="f">Rythme de perte<select class="i" id="p-rate">${opt(.25,'Doux · 0,25 kg / semaine',p.rate)}${opt(.5,'Recommandé · 0,5 kg / semaine',p.rate)}${opt(.75,'Soutenu · 0,75 kg / semaine',p.rate)}${opt(1,'Intensif · 1 kg / semaine',p.rate)}</select></label>
+    <label class="f">Calories d'activité ajoutées au budget<select class="i" id="p-act">${opt(50,'50 % (prudent)',p.actPct)}${opt(75,'75 % (conseillé)',p.actPct)}${opt(100,'100 %',p.actPct)}</select></label>
+    <button class="btn block" type="submit">Enregistrer</button>
+  </form>
+  ${P?`<section class="card stack"><h2>Votre calcul</h2>
+    <div class="eq">
+      <div><span>Métabolisme de base</span><b>${nf(P.bmr)} kcal</b></div>
+      <div><span>Vie quotidienne (× 1,2)</span><b>${nf(P.base)} kcal</b></div>
+      <div><span>Déficit pour ${nf(S.profile.rate,2)} kg/sem.</span><b>− ${nf(P.deficit)} kcal</b></div>
+      <hr><div><span>Objectif repas / jour</span><b>${nf(P.target)} kcal</b></div>
+      <div><span>Protéines conseillées</span><b>${nf(P.prot)} g</b></div>
+    </div>
+    <p class="note">Formule de Mifflin-St Jeor, 1 kg de graisse ≈ 7 700 kcal. Le sport s'ajoute ensuite chaque jour selon le pourcentage choisi.${P.limited?` <b class="danger">Votre objectif est bloqué à ${nf(P.floor)} kcal, le minimum conseillé sans suivi médical.</b>`:''}</p>
+  </section>`:''}
+  <section class="card stack"><h2>Mes données</h2>
+    <p class="note" style="margin:0">Tout reste sur ce téléphone, rien n'est envoyé ailleurs (sauf vers Strava ou Open Food Facts quand vous les utilisez).</p>
+    <div class="row" style="flex-wrap:wrap"><button class="btn sm alt" data-act="export">Copier une sauvegarde</button><button class="btn sm alt" data-act="import">Restaurer</button><button class="btn sm alt danger" data-act="reset">Tout effacer</button></div>
+    <div id="resetzone"></div>
+  </section>`;
+}
+function bindProfil(){
+  const f=$('#pform');let sex=(S.profile||{}).sex||'h';
+  f.querySelectorAll('[data-sex]').forEach(b=>b.onclick=()=>{sex=b.dataset.sex;f.querySelectorAll('[data-sex]').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+  f.onsubmit=e=>{e.preventDefault();
+    const v={sex,age:num($('#p-age').value),height:num($('#p-height').value),start:num($('#p-start').value),goal:num($('#p-goal').value),rate:num($('#p-rate').value),actPct:num($('#p-act').value)};
+    if(!v.age||!v.height||!v.start||!v.goal)return toast('Remplissez âge, taille et poids.');
+    if(v.goal>=v.start)return toast('Le poids visé doit être inférieur au poids de départ.');
+    v.startDate=S.profile?.startDate||today();S.profile=v;
+    if(!S.weights.length)S.weights.push({d:today(),kg:v.start});
+    save();toast('Objectifs enregistrés');render();
+  };
+}
+
+function vLiens(){
+  const st=S.strava,sa=S.sante||{};
+  const stOn=!!st.refresh;
+  const hosted=location.protocol==='https:'&&!inFrame;
+  const redirect=location.origin+location.pathname;
+  const notif=('Notification' in window)?Notification.permission:'indisponible';
+  return banner()+`
+  <p class="small muted" style="margin:2px 2px 0">Branchez vos sources : vos dépenses et votre poids se remplissent tout seuls.</p>
+  <section class="card">
+    <div class="conn-h"><div class="logo" style="background:linear-gradient(135deg,var(--accent),var(--burn))">IA</div><div><h2>Coach IA (Claude)</h2><span class="small muted">Réponses libres et personnalisées</span></div>
+      <span class="status ${aiMode()!=='local'?'on':'mid'}">${aiMode()==='claude'?'Via Claude':aiMode()==='key'?'Clé API':'Mode hors ligne'}</span></div>
+    ${aiMode()==='claude'?`<p class="note">Dans Claude, le coach utilise votre compte Claude : rien à configurer.</p>`:`
+    <p class="note">Sans IA, le coach répond aux questions fréquentes. Pour des réponses libres, collez une clé API Anthropic (console.anthropic.com › API Keys). Elle reste sur ce téléphone ; chaque question coûte une fraction de centime.</p>
+    <div class="row" style="margin-top:10px"><input class="i" id="ai-key" type="password" placeholder="sk-ant-…" value="${esc(S.ai.key||'')}"><button class="btn" data-act="ai-save">OK</button></div>`}
+  </section>
+
+  <section class="card">
+    <div class="conn-h"><div class="logo" style="background:linear-gradient(135deg,#FF5E7E,#FF2D55)">♥</div><div><h2>Apple Santé</h2><span class="small muted">Énergie active, pas, poids</span></div>
+      <span class="status ${sa.last?'on':'mid'}">${sa.last?'Importé':'Via Raccourcis'}</span></div>
+    <p class="note">iOS réserve Apple Santé aux apps de l'App Store : une web app ne peut pas le lire directement. On passe donc par un <b>Raccourci</b> (c'est lui qui vous demande l'autorisation Santé), ou par l'export complet de Santé.</p>
+    ${sa.last?`<p class="note">Dernier import : ${new Date(sa.last).toLocaleString('fr-FR',{dateStyle:'medium',timeStyle:'short'})}${sa.info?' · '+esc(sa.info):''}</p>`:''}
+    <div class="stack" style="margin-top:12px">
+      <button class="btn block" data-act="sante-paste">Importer depuis le Raccourci</button>
+      <label class="btn alt block" for="xmlfile">Importer un export Santé (export.xml)</label>
+      <input type="file" id="xmlfile" accept=".xml,text/xml,application/xml" hidden>
+      <div id="xmlprog" class="small muted"></div>
+    </div>
+    <details><summary>Créer le Raccourci (2 minutes)</summary>
+      <ol class="steps">
+        <li>Ouvrez l'app <b>Raccourcis</b>, touchez <b>+</b> et nommez-le « Léger ».</li>
+        <li>Ajoutez <b>Rechercher des échantillons de santé</b> : Type <i>Énergie active</i>, Date de début <i>Aujourd'hui</i>. Puis <b>Calculer des statistiques</b> → <i>Somme</i>.</li>
+        <li>Refaites la même chose avec <i>Nombre de pas</i>.</li>
+        <li>Ajoutez <b>Rechercher des échantillons de santé</b> : Type <i>Poids</i>, trier par <i>Date de début</i>, <i>Le plus récent d'abord</i>, Limite <i>1</i>.</li>
+        <li>Ajoutez <b>Texte</b> et écrivez : <code>actif=[Somme 1];pas=[Somme 2];poids=[Poids]</code> en insérant les variables.</li>
+        <li>Ajoutez <b>Copier dans le presse-papiers</b>, puis <b>Ouvrir l'URL</b> (ou revenez simplement sur l'app).</li>
+        <li>Lancez-le une fois : iOS vous demande l'accès à Santé, acceptez. Ensuite, touchez « Importer depuis le Raccourci » ici.</li>
+      </ol>
+      <p class="note">Astuce : dans Raccourcis › Automatisation, déclenchez-le chaque soir à 21 h. Le format JSON est accepté aussi : <code>{"actif":540,"pas":8200,"poids":82.4}</code></p>
+    </details>
+    <details><summary>Où trouver export.xml ?</summary>
+      <ol class="steps"><li>App Santé › votre photo › <b>Exporter toutes les données de santé</b>.</li><li>Enregistrez le fichier dans Fichiers, touchez-le pour le décompresser.</li><li>Choisissez <code>export.xml</code> dans le dossier <i>apple_health_export</i>. Les 120 derniers jours sont importés.</li></ol>
+    </details>
+  </section>
+
+  <section class="card">
+    <div class="conn-h"><div class="logo" style="background:#FC4C02">S</div><div><h2>Strava</h2><span class="small muted">Séances, calories, distances</span></div>
+      <span class="status ${stOn?'on':'off'}">${stOn?'Connecté':'Non connecté'}</span></div>
+    ${stOn?`<p class="note">Compte : <b>${esc(st.athlete||'Strava')}</b>${st.last?' · synchro '+new Date(st.last).toLocaleString('fr-FR',{dateStyle:'short',timeStyle:'short'}):''}</p>
+      <div class="row" style="margin-top:12px;flex-wrap:wrap"><button class="btn strava" data-act="strava-sync">Synchroniser 30 jours</button><button class="btn alt" data-act="strava-off">Déconnecter</button></div>`
+    :`<p class="note">Strava autorise les web apps via OAuth. Il faut d'abord créer votre clé API gratuite (une seule fois).</p>
+      <div class="stack" style="margin-top:12px">
+        <div class="grid2"><label class="f">Client ID<input class="i" id="st-id" inputmode="numeric" value="${esc(st.id||'')}"></label><label class="f">Client Secret<input class="i" id="st-secret" type="password" value="${esc(st.secret||'')}"></label></div>
+        <button class="btn strava block" data-act="strava-go">Autoriser l'accès à Strava</button>
+        <div id="stlink"></div>
+        <label class="f">Après l'autorisation, si l'app ne s'est pas rouverte : collez l'adresse de la page affichée<input class="i" id="st-code" placeholder="http://localhost/?state=&code=…"></label>
+        <button class="btn alt block" data-act="strava-code">Valider le code</button>
+      </div>
+      <details><summary>Créer la clé API Strava</summary><ol class="steps">
+        <li>Sur un navigateur, ouvrez <a href="https://www.strava.com/settings/api" target="_blank" rel="noopener">strava.com/settings/api</a>.</li>
+        <li>Nom : « Léger », site web : n'importe lequel. <b>Domaine de rappel d'autorisation</b> : <code>${hosted?esc(location.hostname):'localhost'}</code>.</li>
+        <li>Copiez le <b>Client ID</b> et le <b>Client Secret</b> ci-dessus, puis touchez « Autoriser ».</li>
+      </ol><p class="note">Le secret reste uniquement sur ce téléphone.</p></details>`}
+  </section>
+
+  <section class="card">
+    <div class="conn-h"><div class="logo" style="background:#2E7D32">OFF</div><div><h2>Open Food Facts</h2><span class="small muted">3 millions de produits, codes-barres</span></div><span class="status on">Actif</span></div>
+    <p class="note">La recherche d'aliments interroge Open Food Facts en plus de la base intégrée. Tapez un nom ou les chiffres d'un code-barres. Pas de compte nécessaire.</p>
+  </section>
+
+  <section class="card stack">
+    <h2>Autorisations de l'iPhone</h2>
+    <div class="item"><div class="n"><span>Notifications</span><small>${notif==='granted'?'Autorisées':notif==='denied'?'Refusées dans Réglages':notif==='indisponible'?'Installez l\'app sur l\'écran d\'accueil (iOS 16.4+)':'Pas encore demandé'}</small></div><button class="btn sm alt" data-act="perm-notif" ${notif==='granted'||notif==='indisponible'?'disabled':''}>Autoriser</button></div>
+    <div class="item"><div class="n"><span>Stockage permanent</span><small id="persist-lbl">Évite qu'iOS efface vos données</small></div><button class="btn sm alt" data-act="perm-store">Autoriser</button></div>
+    <div class="item"><div class="n"><span>Installer sur l'écran d'accueil</span><small>Safari › Partager › Sur l'écran d'accueil</small></div><span class="tag">${matchMedia('(display-mode: standalone)').matches||navigator.standalone?'Installée':'Web'}</span></div>
+  </section>`;
+}
+
+/* ---------- coach ---------- */
+let sampleFn=null,aiBusy=null;
+try{window.claude?.use?.('sample').then(f=>{sampleFn=f;if(tab==='coach'||tab==='liens')render()}).catch(()=>{})}catch(e){}
+function aiMode(){return sampleFn?'claude':S.ai.key?'key':'local'}
+const SUGG=['Le café fait-il grossir ?','Que manger ce soir ?','Pourquoi mon poids stagne ?','Collation protéinée ?','Le jeûne intermittent, ça marche ?','L\'alcool et la perte de poids ?','Cardio ou musculation ?','J\'ai craqué, je fais quoi ?'];
+function mdLite(t){
+  const lines=esc(t).replace(/\*\*(.+?)\*\*/g,'<b>$1</b>').split(/\n/);let out='',ul=false;
+  lines.forEach(l=>{const m=l.match(/^\s*[-•*]\s+(.*)/);if(m){if(!ul){out+='<ul>';ul=true}out+='<li>'+m[1]+'</li>'}else{if(ul){out+='</ul>';ul=false}if(l.trim())out+='<p>'+l+'</p>'}});
+  return out+(ul?'</ul>':'');
+}
+function vCoach(){
+  const msgs=S.chat.map(m=>`<div class="msg ${m.r==='u'?'me':'ai'}">${m.r==='u'?esc(m.t):mdLite(m.t)+(m.src==='local'?'<span class="src">Réponse hors ligne · ajoutez l\'IA dans Connexions pour aller plus loin</span>':'')}</div>`).join('');
+  return`<section class="card coach-hero"><div class="logo">?</div><div><h2>Coach</h2><span class="small muted">Posez n'importe quelle question sur la nutrition, le sport ou votre progression. Il connaît vos chiffres du jour.</span></div></section>
+  <div class="chat" id="chat">${msgs||`<div class="msg ai"><p>Bonjour ! Je vois votre budget, vos repas et votre courbe de poids. Que voulez-vous savoir ?</p></div>`}
+  ${aiBusy?`<div class="msg ai" id="live"><span class="typing">Réflexion…</span></div>`:''}</div>
+  ${S.chat.length?'<button class="addline" data-act="chat-clear" style="align-self:center">Effacer la conversation</button>':''}`;
+}
+function coachContext(){
+  const P=plan(),p=S.profile;if(!P)return'Profil non renseigné.';
+  const T=totals(today()),D=day(today());const budget=Math.round(P.target+T.active*p.actPct/100);
+  const w=[...S.weights].sort((a,b)=>a.d<b.d?-1:1).slice(-8).map(x=>x.d+': '+x.kg+' kg').join(', ');
+  return`Profil : ${p.sex==='f'?'femme':'homme'}, ${p.age} ans, ${p.height} cm, départ ${p.start} kg, objectif ${p.goal} kg, rythme ${p.rate} kg/semaine.
+Aujourd'hui (${today()}) : budget ${budget} kcal (objectif repas ${Math.round(P.target)} + activité), mangé ${Math.round(T.kcal)} kcal (P ${Math.round(T.p)} g / G ${Math.round(T.c)} g / L ${Math.round(T.f)} g ; cible protéines ${P.prot} g), reste ${budget-Math.round(T.kcal)} kcal, activité ${Math.round(T.active)} kcal, pas ${T.steps??'inconnu'}, eau ${D.water||0} ml.
+Repas du jour : ${D.foods.map(f=>f.name+' '+f.kcal+' kcal').join(', ')||'aucun'}.
+Dernières pesées : ${w||'aucune'}.`;
+}
+const COACH_RULES=`Tu es le coach de l'app de perte de poids « Léger ». Réponds en français, comme dans une conversation, de façon courte (80 à 150 mots), concrète et bienveillante, avec des chiffres quand c'est utile, en t'appuyant sur les connaissances scientifiques actuelles. Utilise les données de l'utilisateur pour personnaliser. Pas de diagnostic médical : pour un traitement, une maladie, une grossesse ou des signes de trouble alimentaire, oriente vers un médecin ou un diététicien. Ne recommande jamais moins de 1200 kcal par jour.`;
+async function askCoach(q){
+  q=q.trim();if(!q||aiBusy)return;
+  S.chat.push({r:'u',t:q});S.chat=S.chat.slice(-40);save();
+  const mode=aiMode();
+  if(mode==='local'){S.chat.push({r:'a',t:localAnswer(q),src:'local'});save();render();return}
+  aiBusy=new AbortController();render();
+  const hist=S.chat.slice(-12);while(hist.length&&hist[0].r!=='u')hist.shift();
+  const turns=hist.map(m=>({role:m.r==='u'?'user':'assistant',content:m.t}));
+  const ctx=COACH_RULES+'\n\nDonnées de l\'utilisateur :\n'+coachContext();
+  const live=t=>{const el=$('#live');if(el)el.innerHTML=mdLite(t)};
+  try{
+    let text='';
+    if(mode==='claude'){
+      turns[0]={role:'user',content:ctx+'\n\nQuestion : '+turns[0].content};
+      const r=await sampleFn(turns,{onText:({text:t})=>{text=t;live(t)},signal:aiBusy.signal,modelTier:'quick',cache:false});text=r.text;
+    }else{
+      const r=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',signal:aiBusy.signal,headers:{'content-type':'application/json','x-api-key':S.ai.key,'anthropic-version':'2023-06-01','anthropic-dangerous-direct-browser-access':'true'},
+        body:JSON.stringify({model:'claude-haiku-5-5',max_tokens:700,stream:true,system:ctx,messages:turns})});
+      if(!r.ok){throw new Error(r.status===401?'Clé API refusée : vérifiez-la dans Connexions.':'Le coach IA est indisponible ('+r.status+').')}
+      const rd=r.body.getReader(),dec=new TextDecoder();let buf='';
+      for(;;){const{done,value}=await rd.read();if(done)break;buf+=dec.decode(value,{stream:true});const parts=buf.split('\n');buf=parts.pop();
+        for(const l of parts){if(!l.startsWith('data:'))continue;try{const j=JSON.parse(l.slice(5));if(j.type==='content_block_delta'&&j.delta?.text){text+=j.delta.text;live(text)}}catch(e){}}}
+    }
+    S.chat.push({r:'a',t:text||'Je n\'ai pas de réponse, reformulez ?'});
+  }catch(e){
+    const partial=e?.text;
+    if(e?.name==='AbortError'||e?.code==='aborted'){if(partial)S.chat.push({r:'a',t:partial})}
+    else if(e?.code==='not_granted'){sampleFn=null;S.chat.push({r:'a',t:localAnswer(q),src:'local'})}
+    else if(e instanceof TypeError&&mode==='key'){S.chat.push({r:'a',t:localAnswer(q),src:'local'})}
+    else S.chat.push({r:'a',t:(partial?partial+'\n\n':'')+(e?.code==='rate_limited'?'Trop de questions d\'un coup, réessayez dans un instant.':e?.message||'Le coach ne répond pas pour le moment.')});
+  }
+  aiBusy=null;save();render();
+}
+const FAQ=[
+ [/caf[eé]|expresso|cappuccino|latte/i,`**Le café noir ne fait pas grossir** : environ 2 kcal la tasse. Il peut même aider un peu (la caféine augmente légèrement la dépense et coupe la faim).\n- Ce qui compte, c'est ce qu'on ajoute : un sucre ≈ 20 kcal, un latte au lait entier ≈ 150 à 250 kcal, un frappuccino peut dépasser 400 kcal.\n- Évitez-le après 14 h si votre sommeil en pâtit : mal dormir augmente la faim le lendemain.\n- Jusqu'à 3 à 4 tasses par jour, c'est sans risque pour la plupart des adultes.`],
+ [/alcool|vin|bi[eè]re|ap[eé]ro|cocktail|whisky|vodka/i,`L'alcool apporte **7 kcal par gramme**, presque autant que le gras : un verre de vin ≈ 85 kcal, une pinte ≈ 200 kcal, un cocktail ≈ 200 à 300 kcal.\n- Le corps le brûle en priorité, ce qui met la combustion des graisses en pause.\n- Il désinhibe : on mange souvent plus en apéro.\n- Si vous buvez, comptez-le dans le budget, alternez avec de l'eau et préférez vin sec ou bière légère.`],
+ [/sucre|sucr[eé]|bonbon|dessert|g[aâ]teau|chocolat/i,`Le sucre ne fait pas grossir « en soi », c'est le **total de calories** qui compte. Mais les produits sucrés sont peu rassasiants et faciles à surconsommer.\n- Gardez un petit plaisir planifié (2 carreaux de chocolat noir ≈ 120 kcal) plutôt que de tout interdire.\n- Associez-le à un repas, pas seul en collation.\n- Les boissons sucrées sont la pire source : 1 canette ≈ 140 kcal sans aucune satiété.`],
+ [/fruit|banane|pomme|raisin/i,`Les fruits sont des alliés : riches en eau et en fibres, ils rassasient pour peu de calories (une pomme ≈ 80 kcal, une banane ≈ 105 kcal).\n- 2 à 3 portions par jour, entiers plutôt qu'en jus (le jus perd les fibres).\n- Les fruits secs sont beaucoup plus denses : une poignée de raisins secs ≈ 130 kcal.`],
+ [/soir|tard|apr[eè]s 20|nuit|d[iî]ner/i,`Manger le soir **ne fait pas grossir en soi** : c'est le bilan de la journée qui compte.\n- Le vrai piège, c'est le grignotage devant un écran et le manque de sommeil.\n- Un dîner riche en protéines et légumes (poisson + légumes + un peu de féculents) rassasie bien.\n- Si vous avez faim tard, gardez 150 à 200 kcal pour un skyr ou un fruit.`],
+ [/pain|p[aâ]tes|riz|f[eé]culent|glucide|carb/i,`Les glucides ne sont pas l'ennemi. Riz, pâtes ou pain complet fournissent l'énergie pour vos séances.\n- Surveillez surtout les **portions** : 200 g de pâtes cuites ≈ 320 kcal, c'est vite doublé.\n- Préférez les versions complètes, plus rassasiantes.\n- Dosez-les selon l'activité : plus les jours de sport, moins les jours calmes.`],
+ [/gras|huile|beurre|lipide|avocat|noix|amande/i,`Les lipides sont indispensables (hormones, vitamines), mais très caloriques : **9 kcal par gramme**. Une cuillère d'huile ≈ 90 kcal, une poignée d'amandes ≈ 170 kcal.\n- Visez environ 30 % de vos calories.\n- Mesurez l'huile à la cuillère plutôt qu'à l'œil : c'est la source d'erreur numéro 1.`],
+ [/prot[eé]in|whey|viande|poulet|œuf|oeuf|skyr/i,`Les protéines sont votre meilleur outil : elles **rassasient le plus** et protègent vos muscles pendant le régime.\n- Visez environ 1,6 g par kilo (votre cible est affichée sur la journée).\n- En mettre à chaque repas : œufs, skyr, poulet, poisson, tofu, légumineuses.\n- La whey est pratique mais pas obligatoire.`],
+ [/eau|boire|hydrat|soif/i,`Bien boire aide : on confond souvent soif et faim, et un grand verre d'eau avant le repas réduit un peu ce qu'on mange.\n- Comptez environ 35 ml par kilo, plus si vous transpirez.\n- Thé et café comptent aussi, pas les sodas.\n- Suivez vos verres dans la carte Hydratation.`],
+ [/stagn|plateau|bloqu|bouge pas|remonte|pris du poids/i,`Un plateau est normal. Le poids varie de **1 à 2 kg d'un jour à l'autre** (eau, sel, glucides, transit, cycle).\n- Regardez la moyenne sur 7 jours dans l'onglet Poids, pas la pesée du jour.\n- Si la moyenne ne bouge plus depuis 3 semaines : vérifiez les portions (huile, sauces, boissons) et l'activité réelle.\n- En perdant du poids, vos besoins baissent : mettez votre poids à jour pour recalculer le budget.`],
+ [/sport|muscu|cardio|courir|course|v[eé]lo|marche|pas\b/i,`L'alimentation fait l'essentiel de la perte, le sport aide à garder le muscle et le moral.\n- **Musculation 2 à 3 fois par semaine** : elle préserve la masse musculaire.\n- Le cardio augmente la dépense ; la marche (8 000 à 10 000 pas) est sous-estimée et facile à tenir.\n- Les montres surestiment souvent les calories brûlées : c'est pour ça que l'app n'en compte qu'une partie.`],
+ [/sommeil|dormir|fatigu/i,`Le sommeil compte vraiment : après une nuit courte, l'hormone de la faim (ghréline) augmente et on mange en moyenne **300 kcal de plus**.\n- Visez 7 à 9 h.\n- Pas d'écran ni de café tardif, chambre fraîche.`],
+ [/je[uû]ne|16[:/]8|sauter un repas/i,`Le jeûne intermittent marche **autant qu'un régime classique, pas mieux** : il aide surtout parce qu'il réduit la fenêtre où l'on mange.\n- Si ça vous convient (16:8 par exemple), utilisez le chrono sur la journée.\n- Gardez assez de protéines dans la fenêtre de repas.\n- Déconseillé en cas d'antécédents de troubles alimentaires, de diabète traité ou de grossesse.`],
+ [/[eé]dulcorant|light|z[eé]ro|aspartame|stevia/i,`Les boissons « zéro » apportent ~0 kcal et peuvent aider à remplacer les sodas sucrés. Les études ne montrent pas qu'elles font grossir.\n- Idéalement, l'eau reste la boisson de base.\n- Les produits « light » ne sont pas toujours moins caloriques : regardez les kcal pour 100 g.`],
+ [/craqu|tri(ch|che)|excès|exc[eè]s|fringale|faim|grignot/i,`Un écart ne ruine rien : pour stocker 1 kg de graisse, il faut un excédent d'environ **7 700 kcal**.\n- Notez-le quand même, sans culpabiliser, et reprenez normalement au repas suivant (pas de compensation extrême).\n- Contre les fringales : protéines et fibres à chaque repas, eau, et une collation prévue (fruit + skyr).`],
+ [/combien|vite|rapide|semaine|kilo par/i,`Un rythme durable est de **0,5 à 1 % du poids par semaine**, soit environ 0,5 kg pour la plupart des gens.\n- Plus vite, on perd davantage de muscle et on reprend plus facilement.\n- Les premières semaines vont souvent plus vite (perte d'eau), c'est normal.`],
+ [/sel|r[eé]tention|gonfl/i,`Un repas salé fait souvent monter la balance de 0,5 à 1 kg le lendemain : **c'est de l'eau**, pas de la graisse. Elle repart en 1 à 3 jours. Buvez normalement et regardez la tendance sur 7 jours.`],
+ [/petit[- ]d[eé]j|matin/i,`Sauter ou non le petit-déjeuner ne change pas le résultat, c'est le total de la journée qui compte.\n- Si vous en prenez un, misez sur les protéines (skyr, œufs) + fibres (flocons d'avoine, fruit) : il cale jusqu'au midi.\n- Évitez la combinaison viennoiserie + jus, très calorique et peu rassasiante.`],
+];
+function localAnswer(q){
+  const hit=FAQ.find(([re])=>re.test(q));
+  if(/(manger|repas).*(soir|ce soir|maintenant)|que manger|quoi manger|id[eé]e/i.test(q)&&S.profile){
+    const P=plan(),T=totals(today()),left=Math.round(P.target+T.active*S.profile.actPct/100-T.kcal),pl=Math.max(0,Math.round(P.prot-T.p));
+    return`Il vous reste **${nf(left)} kcal** et environ **${nf(pl)} g de protéines** à prendre aujourd'hui.\n${left<250?'- Budget presque épuisé : un skyr (95 kcal) ou un bol de légumes avec un œuf.':left<600?'- Filet de poulet ou poisson (≈ 200 kcal) + légumes à volonté + une cuillère d\'huile.\n- Ou une omelette de 2 œufs + salade + une tranche de pain complet.':'- Saumon (≈ 270 kcal) + riz (≈ 230 kcal) + légumes.\n- Ou pâtes complètes, sauce tomate et thon : ≈ 550 kcal et 35 g de protéines.'}`;
+  }
+  if(hit)return hit[1];
+  return`Je n'ai pas de réponse toute prête à cette question en mode hors ligne. Je réponds sans IA sur : café, alcool, sucre, fruits, féculents, gras, protéines, eau, plateau, sport, sommeil, jeûne, édulcorants, écarts, rythme de perte, sel et petit-déjeuner.\nPour des réponses à tout, activez le coach IA dans **Connexions**.`;
+}
+
+/* ---------- sheets ---------- */
+let sheetCtx={};
+function openSheet(html,ctx={}){sheetCtx=ctx;$('#sheetbody').innerHTML=html;$('#sheet').classList.add('open');$('#scrim').classList.add('open');setTimeout(()=>{const a=$('#sheetbody [autofocus]');if(a)a.focus()},280)}
+function closeSheet(){$('#sheet').classList.remove('open');$('#scrim').classList.remove('open')}
+const sheetHead=t=>`<div class="sheet-h"><h2>${t}</h2><button class="x" data-act="close" aria-label="Fermer">×</button></div>`;
+function defaultMeal(){const h=new Date().getHours();return h<10.5?'matin':h<15?'midi':h<18?'snack':'soir'}
+
+function sheetMenu(){openSheet(sheetHead('Ajouter')+`<div class="stack">
+  <button class="btn block" data-act="add-food" data-meal="${defaultMeal()}">Un aliment</button>
+  <button class="btn alt block" data-act="add-act">Une activité</button>
+  <button class="btn alt block" data-act="add-weight">Une pesée</button></div>`)}
+
+function sheetFood(meal){
+  openSheet(sheetHead('Ajouter un aliment')+`
+    <div class="chips" id="mealchips">${MEALS.map(([id,l])=>`<button class="chip" data-meal-pick="${id}" aria-pressed="${id===meal}">${l}</button>`).join('')}</div>
+    <input class="i" id="fq" placeholder="Rechercher : poulet, skyr, 3017620422003…" autocomplete="off" autofocus>
+    <div class="results" id="fres"></div>
+    <details><summary>Saisie rapide (calories seulement)</summary><div class="stack" style="margin-top:10px">
+      <div class="grid2"><label class="f">Nom<input class="i" id="qn" placeholder="Restaurant"></label><label class="f">kcal<input class="i" id="qk" inputmode="numeric"></label></div>
+      <button class="btn block" data-act="quick-add">Ajouter</button></div></details>`,{meal});
+  showResults('');
+}
+let searchT,searchSeq=0;
+async function showResults(q){
+  const box=$('#fres');if(!box)return;q=q.trim();
+  const norm=s=>s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase();
+  const local=q?FOODS.filter(f=>norm(f.n).includes(norm(q))):[];
+  const rec=!q?S.recent.slice(0,8):[];
+  sheetCtx.list=[...rec,...local];
+  const row=(f,i)=>`<button class="res" data-act="pick-food" data-i="${i}"><div class="n"><span>${esc(f.n)}</span><small>${f.b?esc(f.b)+' · ':''}${nf(f.k)} kcal / 100 g${f.src==='off'?' · Open Food Facts':''}</small></div><span class="k">${nf(f.k*f.g/100)}</span></button>`;
+  const head=t=>`<p class="tiny" style="margin:8px 0 2px">${t}</p>`;
+  let html=(rec.length?head('Récents'):'')+(!q&&!rec.length?head('Suggestions'):'')+sheetCtx.list.map(row).join('');
+  if(!q&&!rec.length){sheetCtx.list=FOODS.slice(0,8);html=head('Suggestions')+sheetCtx.list.map(row).join('')}
+  if(q.length>=3)html+=`<p class="tiny" id="offh" style="margin:12px 0 2px">Open Food Facts · recherche…</p>`;
+  box.innerHTML=html||'<p class="empty">Rien dans la base intégrée.</p>';
+  if(q.length<3)return;
+  const seq=++searchSeq;
+  try{
+    const isCode=/^\d{8,14}$/.test(q);
+    const url=isCode?`https://world.openfoodfacts.org/api/v2/product/${q}.json?fields=code,product_name,product_name_fr,brands,nutriments,serving_quantity`
+      :`https://world.openfoodfacts.org/cgi/search.pl?search_terms=${encodeURIComponent(q)}&search_simple=1&action=process&json=1&page_size=15&lc=fr&fields=code,product_name,product_name_fr,brands,nutriments,serving_quantity`;
+    const ctl=new AbortController();setTimeout(()=>ctl.abort(),9000);
+    const r=await fetch(url,{signal:ctl.signal});const j=await r.json();
+    if(seq!==searchSeq)return;
+    const prods=(isCode?(j.product?[j.product]:[]):(j.products||[])).map(p=>{const n=p.nutriments||{};const k=n['energy-kcal_100g']??(n.energy_100g?n.energy_100g/4.184:null);
+      return k==null?null:{n:p.product_name_fr||p.product_name||'Produit '+p.code,b:(p.brands||'').split(',')[0],k:+k,p:+(n.proteins_100g||0),c:+(n.carbohydrates_100g||0),f:+(n.fat_100g||0),g:+(p.serving_quantity)||100,u:p.serving_quantity?'1 portion':'100 g',src:'off'}}).filter(Boolean);
+    const base=sheetCtx.list.length;sheetCtx.list.push(...prods);
+    const h=$('#offh');if(!h)return;
+    h.textContent=prods.length?'Open Food Facts':'Open Food Facts · aucun résultat';
+    h.insertAdjacentHTML('afterend',prods.map((f,i)=>row(f,base+i)).join(''));
+  }catch(e){if(seq!==searchSeq)return;const h=$('#offh');if(h)h.textContent='Open Food Facts injoignable ici (fonctionne dans l\'app installée)'}
+}
+function sheetPortion(f){
+  const meal=sheetCtx.meal;
+  openSheet(sheetHead(esc(f.n))+`
+    <p class="muted small" style="margin:-8px 0 0">${f.b?esc(f.b)+' · ':''}${nf(f.k)} kcal pour 100 g</p>
+    <div class="row" style="align-items:baseline;gap:6px"><span class="kcalbig" id="pk">0</span><span class="muted">kcal</span></div>
+    <div class="chips">${[[f.g,(f.u||'1 portion')+' · '+nf(f.g)+' g'],[100,'100 g'],[f.g*2,'× 2 · '+nf(f.g*2)+' g']].map(([g,l])=>`<button class="chip" data-g="${g}">${esc(l)}</button>`).join('')}</div>
+    <label class="f">Quantité (g ou ml)<input class="i" id="pg" inputmode="decimal" value="${f.g}"></label>
+    <div class="stats3 small"><div class="stat"><b id="pp">0</b><span>prot. (g)</span></div><div class="stat"><b id="pc">0</b><span>gluc. (g)</span></div><div class="stat"><b id="pf">0</b><span>lip. (g)</span></div></div>
+    <button class="btn block" data-act="confirm-food">Ajouter au ${(MEALS.find(m=>m[0]===meal)||MEALS[0])[1].toLowerCase()}</button>`,{meal,food:f});
+  const upd=()=>{const g=num($('#pg').value)||0,q=g/100;$('#pk').textContent=nf(f.k*q);$('#pp').textContent=nf(f.p*q,1);$('#pc').textContent=nf(f.c*q,1);$('#pf').textContent=nf(f.f*q,1)};
+  $('#pg').oninput=upd;document.querySelectorAll('[data-g]').forEach(b=>b.onclick=()=>{$('#pg').value=b.dataset.g;upd()});upd();
+}
+function sheetAct(){
+  const kg=weightOn(cur);
+  openSheet(sheetHead('Ajouter une activité')+`
+    <label class="f">Activité<select class="i" id="at">${ACTS.map(([n,m],i)=>`<option value="${i}">${n}</option>`).join('')}</select></label>
+    <label class="f">Durée (minutes)<input class="i" id="am" inputmode="numeric" value="30"></label>
+    <div class="row" style="align-items:baseline;gap:6px"><span class="kcalbig" id="ak">0</span><span class="muted">kcal estimées</span></div>
+    <label class="f">Ou valeur de votre montre (kcal actives)<input class="i" id="ak2" inputmode="numeric" placeholder="facultatif"></label>
+    <p class="note" style="margin:0">Estimation à ${nf(kg,1)} kg avec les équivalents métaboliques (MET), hors métabolisme de base.</p>
+    <button class="btn block" data-act="confirm-act">Ajouter</button>`);
+  const upd=()=>{$('#ak').textContent=nf(metKcal(ACTS[$('#at').value][1],num($('#am').value)||0,kg))};$('#at').onchange=upd;$('#am').oninput=upd;upd();
+}
+function sheetWeight(){
+  openSheet(sheetHead('Nouvelle pesée')+`
+    <div class="grid2"><label class="f">Poids (kg)<input class="i" id="wk" inputmode="decimal" value="${nf(curWeight(),1)}" autofocus></label><label class="f">Date<input class="i" id="wd" type="date" value="${today()}" max="${today()}"></label></div>
+    <p class="note" style="margin:0">Pesez-vous le matin, à jeun, pour comparer ce qui est comparable.</p>
+    <button class="btn block" data-act="confirm-weight">Enregistrer</button>`);
+}
+function sheetPaste(title,hint,onDone){
+  openSheet(sheetHead(title)+`<p class="note" style="margin:-6px 0 0">${hint}</p><textarea class="i" id="pastebox" placeholder="Collez ici"></textarea><button class="btn block" data-act="paste-ok">Importer</button>`,{onDone});
+}
+
+/* ---------- integrations: Apple Santé ---------- */
+function parseHealthText(txt){
+  txt=String(txt||'').trim();if(!txt)throw new Error('Presse-papiers vide');
+  let o={};
+  try{const j=JSON.parse(txt);o=Array.isArray(j)?j:[j]}catch(e){
+    const pick=re=>{const m=txt.match(re);return m?num(m[1]):null};
+    o=[{date:(txt.match(/date\s*[:=]\s*(\d{4}-\d{2}-\d{2})/i)||[])[1],actif:pick(/(?:actif|active|énergie active)\s*[:=]\s*([\d.,\s]+)/i),pas:pick(/(?:pas|steps)\s*[:=]\s*([\d.,\s]+)/i),poids:pick(/(?:poids|weight)\s*[:=]\s*([\d.,]+)/i)}];
+  }
+  let n=0;
+  o.forEach(r=>{const g=(...k)=>{for(const x of k)if(r[x]!=null&&r[x]!=='')return num(r[x]);return null};
+    const d=/^\d{4}-\d{2}-\d{2}/.test(r.date||'')?r.date.slice(0,10):today();
+    const a=g('actif','active','activeEnergy','energie'),s=g('pas','steps'),w=g('poids','weight');
+    if(a==null&&s==null&&w==null)return;
+    const D=day(d);D.health=Object.assign({},D.health,a!=null?{active:r0(a)}:{},s!=null?{steps:r0(s)}:{},{src:'raccourci'});
+    if(w&&w>25&&w<350)upsertWeight(d,Math.round(w*10)/10,'sante');n++});
+  if(!n)throw new Error('Aucune valeur reconnue (actif, pas, poids)');
+  S.sante.last=Date.now();S.sante.info='Raccourci';leaveDemo();save();return n;
+}
+async function santePaste(){
+  // Installed PWA: clipboard read works after a tap (iOS shows a « Coller » bubble). Otherwise fall back to a paste box.
+  try{if(navigator.clipboard?.readText){const t=await navigator.clipboard.readText();parseHealthText(t);toast('Santé importée');cur=today();tab='jour';render();return}}catch(e){if(e.message&&!/denied|not allowed|permission|NotAllowed/i.test(e.message+e.name))return toast(e.message)}
+  sheetPaste('Importer depuis le Raccourci','Touchez la zone, puis « Coller ».',t=>{parseHealthText(t);toast('Santé importée');cur=today();tab='jour';render()});
+}
+async function importHealthXML(file){
+  const prog=$('#xmlprog');const cutoff=addDays(today(),-120);
+  const agg={a:{},s:{},c:{}},wt={};
+  const re=/<Record type="HKQuantityTypeIdentifier(BodyMass|ActiveEnergyBurned|StepCount|DietaryEnergyConsumed)"([^>]*)>/g;
+  const at=(s,k)=>{const m=s.match(new RegExp(k+'="([^"]*)"'));return m?m[1]:''};
+  const reader=file.stream().getReader(),dec=new TextDecoder();let buf='',read=0,tick=0;
+  for(;;){const{done,value}=await reader.read();if(done)break;read+=value.length;buf+=dec.decode(value,{stream:true});
+    let m,last=0;re.lastIndex=0;
+    while((m=re.exec(buf))){last=re.lastIndex;const a=m[2],d=at(a,'startDate').slice(0,10);if(d<cutoff)continue;
+      const v=parseFloat(at(a,'value'));if(!isFinite(v))continue;const unit=at(a,'unit'),src=at(a,'sourceName')||'?';
+      if(m[1]==='BodyMass'){wt[d]=unit==='lb'?v*.4536:v}
+      else{const t=m[1]==='StepCount'?'s':m[1]==='ActiveEnergyBurned'?'a':'c';const val=unit==='kJ'?v/4.184:v;((agg[t][d]||(agg[t][d]={}))[src]=(agg[t][d][src]||0)+val)}}
+    const p=buf.lastIndexOf('<Record');buf=p>=last?buf.slice(p):buf.slice(Math.max(last,buf.length-300));
+    if(++tick%40===0&&prog)prog.textContent=`Lecture… ${Math.round(read/file.size*100)} %`;
+  }
+  const best=o=>Math.max(...Object.values(o)); // iPhone + montre comptent tous les deux : on garde la source la plus complète
+  const days=new Set([...Object.keys(agg.a),...Object.keys(agg.s)]);
+  days.forEach(d=>{const D=day(d);D.health=Object.assign({},D.health,agg.a[d]?{active:r0(best(agg.a[d]))}:{},agg.s[d]?{steps:r0(best(agg.s[d]))}:{},{src:'export'})});
+  Object.entries(wt).forEach(([d,kg])=>upsertWeight(d,Math.round(kg*10)/10,'sante'));
+  S.sante.last=Date.now();S.sante.info=`${days.size} jours, ${Object.keys(wt).length} pesées`;leaveDemo();save();
+  if(prog)prog.textContent='';toast(`Import terminé : ${S.sante.info}`);render();
+}
+function upsertWeight(d,kg,src){S.weights=S.weights.filter(x=>x.d!==d);S.weights.push({d,kg,src});S.weights.sort((a,b)=>a.d<b.d?-1:1)}
+
+/* ---------- integrations: Strava ---------- */
+const stravaRedirect=()=>(location.protocol==='https:'&&!inFrame)?location.origin+location.pathname:'http://localhost/';
+function stravaAuthURL(){const st=S.strava;return'https://www.strava.com/oauth/authorize?'+new URLSearchParams({client_id:st.id,redirect_uri:stravaRedirect(),response_type:'code',approval_prompt:'auto',scope:'read,activity:read_all',state:'leger'})}
+async function stravaToken(params){
+  const st=S.strava;
+  const r=await fetch('https://www.strava.com/oauth/token',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({client_id:st.id,client_secret:st.secret,...params})});
+  if(!r.ok)throw new Error(r.status===400||r.status===401?'Strava refuse : vérifiez le Client ID/Secret ou recommencez l\'autorisation':'Strava indisponible ('+r.status+')');
+  const j=await r.json();st.access=j.access_token;st.refresh=j.refresh_token;st.exp=j.expires_at;
+  if(j.athlete)st.athlete=[j.athlete.firstname,j.athlete.lastname].filter(Boolean).join(' ');save();
+}
+async function stravaAccess(){const st=S.strava;if(!st.refresh)throw new Error('Strava non connecté');if(!st.access||Date.now()/1000>st.exp-120)await stravaToken({grant_type:'refresh_token',refresh_token:st.refresh});return st.access}
+const SPORT_MET={Run:9.8,TrailRun:9,Walk:3.8,Hike:6,Ride:7.5,VirtualRide:7,EBikeRide:4,Swim:7,WeightTraining:5,Workout:6,Crossfit:8,Yoga:2.8,Rowing:7,Elliptical:5,Soccer:7,Tennis:7,Padel:6,Badminton:5.5};
+async function stravaSync(){
+  const tok=await stravaAccess();const after=Math.floor((Date.now()-30*864e5)/1000);
+  const r=await fetch(`https://www.strava.com/api/v3/athlete/activities?after=${after}&per_page=100`,{headers:{Authorization:'Bearer '+tok}});
+  if(r.status===401)throw new Error('Autorisation Strava expirée, reconnectez-vous');
+  if(!r.ok)throw new Error('Strava indisponible ('+r.status+')');
+  const list=await r.json();let n=0;
+  list.forEach(a=>{const d=(a.start_date_local||'').slice(0,10);if(!d)return;const D=day(d);const ext='strava:'+a.id;
+    const min=Math.round((a.moving_time||0)/60);
+    const kcal=r0(a.calories||(a.kilojoules?a.kilojoules*1.0:metKcal(SPORT_MET[a.sport_type||a.type]||6,min,weightOn(d))));
+    const name=(a.name||a.sport_type)+(a.distance?' · '+nf(a.distance/1000,1)+' km':'');
+    D.acts=D.acts.filter(x=>x.ext!==ext);D.acts.push({id:uid(),src:'strava',name,min,kcal,ext});n++});
+  S.strava.last=Date.now();save();return n;
+}
+async function handleOAuthReturn(){
+  const q=new URLSearchParams(location.search);if(!q.get('code')||q.get('state')!=='leger')return;
+  history.replaceState(null,'',location.pathname);
+  if(!S.strava.id){tab='liens';render();toast('Collez ce code dans Connexions › Strava : '+q.get('code'));return}
+  try{await stravaToken({code:q.get('code'),grant_type:'authorization_code'});const n=await stravaSync();tab='liens';render();toast(`Strava connecté · ${n} séances`)}catch(e){tab='liens';render();toast(e.message)}
+}
+
+/* ---------- actions ---------- */
+function leaveDemo(){if(S.demo){S.demo=false}}
+const actions={
+  'day-prev':()=>{cur=addDays(cur,-1);render()},
+  'day-next':()=>{if(cur<today()){cur=addDays(cur,1);render()}},
+  'add-menu':sheetMenu,
+  'close':closeSheet,
+  'start':()=>{const keep={strava:S.strava};S=blank();S.strava=keep.strava;save();tab='profil';cur=today();render();toast('Données d\'exemple effacées')},
+  'add-food':b=>sheetFood(b.dataset.meal||defaultMeal()),
+  'pick-food':b=>sheetPortion(sheetCtx.list[+b.dataset.i]),
+  'confirm-food':()=>{const g=num($('#pg').value);if(!g)return toast('Indiquez une quantité');const f=sheetCtx.food;
+    leaveDemo();day(cur).foods.push(foodEntry(sheetCtx.meal,f,g));
+    S.recent=[f,...S.recent.filter(x=>!(x.n===f.n&&x.b===f.b))].slice(0,12);save();closeSheet();tab='jour';render();toast(`${f.n} ajouté`)},
+  'quick-add':()=>{const k=num($('#qk').value);if(!k)return toast('Indiquez les calories');leaveDemo();
+    day(cur).foods.push({id:uid(),meal:sheetCtx.meal,name:$('#qn').value.trim()||'Saisie rapide',g:0,kcal:r0(k),p:0,c:0,f:0});save();closeSheet();render();toast('Ajouté')},
+  'del-food':b=>{const D=day(cur);D.foods=D.foods.filter(x=>x.id!==b.dataset.id);save();render()},
+  'add-act':sheetAct,
+  'confirm-act':()=>{const[n,met]=ACTS[$('#at').value];const min=num($('#am').value)||0;const own=num($('#ak2').value);
+    if(!min&&!own)return toast('Indiquez une durée');leaveDemo();
+    day(cur).acts.push({id:uid(),src:'manuel',name:n,min,kcal:own?r0(own):metKcal(met,min,weightOn(cur))});save();closeSheet();tab='jour';render();toast('Activité ajoutée')},
+  'del-act':b=>{const D=day(cur);D.acts=D.acts.filter(x=>x.id!==b.dataset.id);save();render()},
+  'add-weight':sheetWeight,
+  'confirm-weight':()=>{const kg=num($('#wk').value),d=$('#wd').value||today();if(!kg||kg<25||kg>350)return toast('Poids invalide');leaveDemo();upsertWeight(d,kg);save();closeSheet();tab='poids';render();toast('Pesée enregistrée')},
+  'del-weight':b=>{S.weights=S.weights.filter(x=>x.d!==b.dataset.d);save();render()},
+  'sante-paste':santePaste,
+  'paste-ok':()=>{try{sheetCtx.onDone($('#pastebox').value);closeSheet()}catch(e){toast(e.message)}},
+  'strava-go':()=>{const id=$('#st-id').value.trim(),sec=$('#st-secret').value.trim();if(!/^\d+$/.test(id)||!sec)return toast('Renseignez le Client ID et le Client Secret');
+    S.strava.id=id;S.strava.secret=sec;save();const url=stravaAuthURL();
+    if(!inFrame){location.href=url;return}
+    $('#stlink').innerHTML=`<a class="btn strava block" href="${esc(url)}" target="_blank" rel="noopener">Ouvrir Strava pour autoriser</a><p class="note">Strava vous renverra vers une page « localhost » qui ne s'affiche pas : c'est normal, copiez son adresse et collez-la ci-dessous.</p>`},
+  'strava-code':async()=>{const v=$('#st-code').value.trim();let code=v;try{code=new URL(v).searchParams.get('code')||v}catch(e){}
+    if(!code)return toast('Collez l\'adresse ou le code');const id=$('#st-id').value.trim(),sec=$('#st-secret').value.trim();if(id)S.strava.id=id;if(sec)S.strava.secret=sec;
+    try{toast('Connexion à Strava…');await stravaToken({code,grant_type:'authorization_code'});const n=await stravaSync();render();toast(`Strava connecté · ${n} séances`)}catch(e){toast(e.name==='TypeError'?'Strava injoignable depuis cet aperçu : utilisez l\'app installée':e.message)}},
+  'strava-sync':async()=>{try{toast('Synchronisation…');const n=await stravaSync();leaveDemo();render();toast(`${n} séances Strava à jour`)}catch(e){toast(e.name==='TypeError'?'Strava injoignable ici':e.message)}},
+  'strava-off':()=>{const id=S.strava.id;S.strava={id};save();render();toast('Strava déconnecté')},
+  'perm-notif':async()=>{try{const r=await Notification.requestPermission();if(r==='granted')new Notification('Léger',{body:'Les rappels sont activés.'});render()}catch(e){toast('Notifications indisponibles ici')}},
+  'perm-store':async()=>{try{const ok=await navigator.storage?.persist?.();$('#persist-lbl').textContent=ok?'Accordé : vos données sont protégées':'Refusé par le navigateur (installez l\'app)'}catch(e){toast('Indisponible ici')}},
+  'export':async()=>{const txt=JSON.stringify(S);
+    if(!inFrame){try{const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([txt],{type:'application/json'}));a.download='leger-sauvegarde-'+today()+'.json';a.click();return toast('Sauvegarde téléchargée')}catch(e){}}
+    try{await navigator.clipboard.writeText(txt);toast('Sauvegarde copiée : collez-la dans Notes')}catch(e){sheetPaste('Sauvegarde','Copiez ce texte et gardez-le dans Notes.',()=>{});$('#pastebox').value=txt;$('#pastebox').select()}},
+  'import':()=>sheetPaste('Restaurer une sauvegarde','Collez le texte de sauvegarde.',t=>{const j=JSON.parse(t);if(!j.v)throw new Error('Sauvegarde invalide');S=Object.assign(blank(),j);save();render();toast('Sauvegarde restaurée')}),
+  'reset':()=>{$('#resetzone').innerHTML=`<div class="row" style="flex-wrap:wrap"><span class="small danger">Effacer toutes les données de ce téléphone ?</span><button class="btn sm" style="background:var(--bad);color:#fff" data-act="reset-ok">Oui, tout effacer</button></div>`},
+  'chat-send':()=>{const i=$('#chatin');const v=i.value;i.value='';askCoach(v)},
+  'chat-sugg':b=>askCoach(b.dataset.q),
+  'chat-stop':()=>aiBusy?.abort(),
+  'chat-clear':()=>{S.chat=[];save();render()},
+  'ai-save':()=>{S.ai.key=$('#ai-key').value.trim();save();render();toast(S.ai.key?'Clé enregistrée : le coach IA est actif':'Clé supprimée')},
+  'water':b=>{const D=day(cur),n=+b.dataset.n;D.water=(D.water||0)/250>=n?(n-1)*250:n*250;leaveDemo();save();render()},
+  'fast-start':b=>{S.fast={start:Date.now(),h:+b.dataset.h};save();render();toast('Chrono lancé')},
+  'fast-stop':()=>{const h=S.fast?(Date.now()-S.fast.start)/36e5:0;S.fast=null;save();render();toast(`Jeûne de ${nf(h,1)} h enregistré`)},
+  'reset-ok':()=>{S=blank();save();tab='profil';render();toast('Données effacées')},
+};
+document.addEventListener('click',e=>{
+  const t=e.target.closest('[data-tab]');if(t&&!t.closest('#pform')){tab=t.dataset.tab;if(tab!=='jour')cur=today();closeSheet();render();window.scrollTo(0,0);return}
+  const mp=e.target.closest('[data-meal-pick]');if(mp){sheetCtx.meal=mp.dataset.mealPick;document.querySelectorAll('[data-meal-pick]').forEach(x=>x.setAttribute('aria-pressed',x===mp));return}
+  const a=e.target.closest('[data-act]');if(a&&actions[a.dataset.act]){e.preventDefault();actions[a.dataset.act](a)}
+});
+document.addEventListener('submit',e=>{if(e.target.id==='chatform'){e.preventDefault();actions['chat-send']()}});
+document.addEventListener('input',e=>{if(e.target.id==='fq'){clearTimeout(searchT);const v=e.target.value;searchT=setTimeout(()=>showResults(v),380)}});
+document.addEventListener('change',e=>{if(e.target.id==='xmlfile'&&e.target.files[0]){$('#xmlprog').textContent='Lecture… 0 %';importHealthXML(e.target.files[0]).catch(er=>{$('#xmlprog').textContent='';toast('Fichier illisible : '+er.message)})}});
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)render()});
+
+render();
+handleOAuthReturn();
+if('serviceWorker' in navigator&&!inFrame&&location.protocol==='https:'){navigator.serviceWorker.register('sw.js').catch(()=>{})}
+})();
+</script>
+
+</body>
+</html>
